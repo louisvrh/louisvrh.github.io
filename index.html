@@ -147,8 +147,8 @@
 <canvas id="bg" aria-hidden="true"></canvas>
 <div class="friction mono" hidden>
   <label for="friction">friction</label>
-  <input type="range" id="friction" min="0" max="100" value="56" step="1">
-  <output id="zeta" for="friction">ζ 0.43</output>
+  <input type="range" id="friction" min="0" max="100" value="75" step="1">
+  <output id="zeta" for="friction">ζ 1.29</output>
 </div>
 
 <header class="hero">
@@ -389,7 +389,7 @@
   const damp = (vel, base, rest, scale) => base + rest / (1 + Math.abs(vel) / scale);
   const BASE_DAMP = 5;
   const ZETA_PER_FRICTION = BASE_DAMP / (2 * K.reduce((a, k) => a + Math.sqrt(k), 0) / N);
-  let friction = 1;
+  let friction = 3;
 
   function step(h) {
     const x = d.map((di, i) => di - target(i));
@@ -537,17 +537,17 @@
       request();
     });
 
-    // Friction slider: 0..100 maps logarithmically to 0.25x..3x the default.
+    // Friction slider: logarithmic, 3x the base damping (ζ ≈ 1.29) at 75, halving every 25.
     const panel = document.querySelector('.friction');
     const slider = document.getElementById('friction');
     const readout = document.getElementById('zeta');
     const setFriction = () => {
-      friction = 0.25 * Math.pow(12, slider.value / 100);
+      friction = 3 * Math.pow(2, (slider.value - 75) / 25);
       readout.textContent = `ζ ${(friction * ZETA_PER_FRICTION).toFixed(2)}`;
-      try { localStorage.setItem('friction', slider.value); } catch (err) {}
+      try { localStorage.setItem('friction-v2', slider.value); } catch (err) {}
     };
     try {
-      const saved = localStorage.getItem('friction');
+      const saved = localStorage.getItem('friction-v2');
       if (saved !== null) slider.value = saved;
     } catch (err) {}
     setFriction();
