@@ -114,6 +114,26 @@
   }
   .links a { color: var(--accent); text-decoration: none; }
   .links a:hover { text-decoration: underline; }
+  .friction {
+    position: fixed;
+    right: 16px;
+    bottom: 16px;
+    z-index: 5;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 12px;
+    font-size: 11px;
+    color: var(--muted);
+    background: rgba(8, 10, 15, 0.72);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid var(--line);
+    border-radius: 999px;
+  }
+  .friction[hidden] { display: none; }
+  .friction input { width: 110px; accent-color: var(--accent); margin: 0; }
+  .friction output { min-width: 4.5em; color: var(--text); font-variant-numeric: tabular-nums; }
   footer {
     margin-top: 1.4rem;
     font-size: 12px;
@@ -125,6 +145,11 @@
 </head>
 <body>
 <canvas id="bg" aria-hidden="true"></canvas>
+<div class="friction mono" hidden>
+  <label for="friction">friction</label>
+  <input type="range" id="friction" min="0" max="100" value="56" step="1">
+  <output id="zeta" for="friction">ζ 0.43</output>
+</div>
 
 <header class="hero">
   <div class="hero-inner">
@@ -219,70 +244,76 @@
   }`;
 
   // For a counter-clockwise convex polygon, the outer billiard map reflects x
-  // through the vertex at the end of the chain of edges visible from x.
+  // through the vertex at the end of the chain of edges visible from x. The
+  // polygon size is fixed so the compiler can unroll every loop over vertices.
+  const N = 5;
   const FRAG = `#version 300 es
   precision highp float;
-  precision highp int;
-  #define MAXN 8
+  #define N ${N}
   #define MAXI 320
   uniform vec2 uC;
   uniform float uS;
-  uniform vec2 uV[MAXN];
-  uniform int uN;
+  uniform vec2 uV[N];
   uniform int uIter;
   out vec4 frag;
 
   float cr(vec2 a, vec2 b) { return a.x * b.y - a.y * b.x; }
 
-  float rayDist(vec2 p, vec2 o, vec2 dir) {
-    float t = max(dot(p - o, dir) / dot(dir, dir), 0.0);
-    return length(p - o - dir * t);
+  float rayDist2(vec2 p, vec2 o, vec2 dir) {
+    vec2 q = p - o;
+    vec2 r = q - dir * max(dot(q, dir) / dot(dir, dir), 0.0);
+    return dot(r, r);
   }
 
   void main() {
     vec2 x0 = (gl_FragCoord.xy - uC) / uS;
 
+    // cr(V[i] - x, V[i+1] - x) = C[i] + cr(E[i], x): which side of edge i x is on.
+    vec2 V[N], E[N];
+    float C[N];
+    for (int i = 0; i < N; i++) {
+      V[i] = uV[i];
+      E[i] = uV[(i + 1) % N] - uV[i];
+      C[i] = cr(uV[i], uV[(i + 1) % N]);
+    }
+
     bool inside = true;
-    float edgeD = 1e9;
-    for (int i = 0; i < MAXN; i++) {
-      if (i >= uN) break;
-      vec2 a = uV[i], b = uV[(i + 1) % uN];
-      vec2 ab = b - a;
-      if (cr(ab, x0 - a) < 0.0) inside = false;
-      float t = clamp(dot(x0 - a, ab) / dot(ab, ab), 0.0, 1.0);
-      edgeD = min(edgeD, length(x0 - a - ab * t));
+    float edgeD2 = 1e9;
+    for (int i = 0; i < N; i++) {
+      if (C[i] + cr(E[i], x0) < 0.0) inside = false;
+      vec2 q = x0 - V[i];
+      vec2 r = q - E[i] * clamp(dot(q, E[i]) / dot(E[i], E[i]), 0.0, 1.0);
+      edgeD2 = min(edgeD2, dot(r, r));
     }
 
     // Each step is a point reflection, an isometry, so the distance from x0 to
     // the edge of its tile is the smallest distance from any iterate to the
     // boundary of the wedge (apex v) in which that iterate's reflection applies.
     int period = 0;
-    float md = 1e9;
-    float bd = 1e9;
+    float md2 = 1e9;
+    float bd2 = 1e9;
     if (!inside) {
       vec2 x = x0;
       for (int k = 1; k <= MAXI; k++) {
         if (k > uIter) break;
-        int j = 0;
-        float ePrev = cr(uV[uN - 1] - x, uV[0] - x);
-        for (int i = 0; i < MAXN; i++) {
-          if (i >= uN) break;
-          float e = cr(uV[i] - x, uV[(i + 1) % uN] - x);
-          if (ePrev < 0.0 && e >= 0.0) j = i;
+        vec2 v = V[0], back = E[N - 1], fwd = E[0];
+        float ePrev = C[N - 1] + cr(E[N - 1], x);
+        for (int i = 0; i < N; i++) {
+          float e = C[i] + cr(E[i], x);
+          if (ePrev < 0.0 && e >= 0.0) { v = V[i]; back = E[(i + N - 1) % N]; fwd = E[i]; }
           ePrev = e;
         }
-        vec2 v = uV[j];
-        bd = min(bd, min(rayDist(x, v, uV[(j + uN - 1) % uN] - v),
-                         rayDist(x, v, v - uV[(j + 1) % uN])));
+        bd2 = min(bd2, min(rayDist2(x, v, -back), rayDist2(x, v, -fwd)));
         x = 2.0 * v - x;
-        float d = distance(x, x0);
-        if (d < 1e-3) { period = k; break; }
-        md = min(md, d);
+        vec2 dx = x - x0;
+        float d2 = dot(dx, dx);
+        if (d2 < 1e-6) { period = k; break; }
+        md2 = min(md2, d2);
       }
     }
 
     float p = float(period);
-    float boundary = period > 0 ? 1.0 - smoothstep(0.35, 1.25, bd * uS) : 0.0;
+    float boundary = period > 0 ? 1.0 - smoothstep(0.35, 1.25, sqrt(bd2) * uS) : 0.0;
 
     vec3 base = vec3(0.027, 0.031, 0.047);
     vec3 col;
@@ -295,10 +326,10 @@
       col = mix(col, vec3(0.095, 0.070, 0.165), smoothstep(0.55, 1.0, g) * 0.8);
       col *= 0.75 + 0.9 / sqrt(p);
     } else {
-      col = base + vec3(0.30, 0.80, 0.95) * exp(-md * 10.0) * 0.6;
+      col = base + vec3(0.30, 0.80, 0.95) * exp(-sqrt(md2) * 10.0) * 0.6;
     }
     if (!inside) col += vec3(0.20, 0.62, 0.72) * 0.30 * boundary;
-    col = mix(col, vec3(0.45, 0.92, 1.0), smoothstep(1.6 / uS, 0.0, edgeD) * 0.85);
+    col = mix(col, vec3(0.45, 0.92, 1.0), smoothstep(1.6 / uS, 0.0, sqrt(edgeD2)) * 0.85);
 
     float r = length(gl_FragCoord.xy - uC) / length(uC);
     col *= 1.0 - 0.4 * smoothstep(0.35, 1.15, r);
@@ -328,7 +359,6 @@
     C: gl.getUniformLocation(prog, 'uC'),
     S: gl.getUniformLocation(prog, 'uS'),
     V: gl.getUniformLocation(prog, 'uV[0]'),
-    N: gl.getUniformLocation(prog, 'uN'),
     I: gl.getUniformLocation(prog, 'uIter'),
   };
 
@@ -337,7 +367,6 @@
   // offsets d form a ring of coupled, damped oscillators with slightly different
   // natural frequencies; scrolling and clicking kick their velocities, and the
   // scroll position sets where they come to rest (regular at the top of the page).
-  const N = 5;
   const OMEGA = [1.0, 1.618034, 0.732051, 2.236068, 1.414214];
   const AMP = 0.42 * Math.PI / N;
   const SCROLL_GAIN = 0.0018;
@@ -345,7 +374,7 @@
   const COUPLE = 14;
   const SCROLL_KICK = [1.0, -0.7, 0.5, -0.9, 0.8];
   const KR = (2 * Math.PI * 0.5) ** 2;
-  const verts = new Float32Array(16);
+  const verts = new Float32Array(2 * N);
 
   const target = (i) => 0.9 * Math.sin(OMEGA[i] * s);
   let s = window.scrollY * SCROLL_GAIN;
@@ -355,17 +384,21 @@
   let rv = 0;
 
   // Damping rises as things slow down, so motion is lively when fast and
-  // settles decisively instead of trembling at the end.
+  // settles decisively instead of trembling at the end. The friction slider
+  // scales all of it; ZETA_PER_FRICTION converts to a damping ratio for display.
   const damp = (vel, base, rest, scale) => base + rest / (1 + Math.abs(vel) / scale);
+  const BASE_DAMP = 5;
+  const ZETA_PER_FRICTION = BASE_DAMP / (2 * K.reduce((a, k) => a + Math.sqrt(k), 0) / N);
+  let friction = 1;
 
   function step(h) {
     const x = d.map((di, i) => di - target(i));
     for (let i = 0; i < N; i++) {
       const lap = x[(i + N - 1) % N] + x[(i + 1) % N] - 2 * x[i];
-      v[i] += (-K[i] * x[i] + COUPLE * lap - damp(v[i], 2.8, 8, 0.25) * v[i]) * h;
+      v[i] += (-K[i] * x[i] + COUPLE * lap - friction * damp(v[i], BASE_DAMP, 8, 0.25) * v[i]) * h;
     }
     for (let i = 0; i < N; i++) d[i] += v[i] * h;
-    rv += (-KR * (r - 0.22 * s) - damp(rv, 1.6, 3, 0.1) * rv) * h;
+    rv += (-KR * (r - 0.22 * s) - friction * damp(rv, 2.5, 3, 0.1) * rv) * h;
     r += rv * h;
   }
 
@@ -391,11 +424,32 @@
     return Math.min(window.scrollY / window.innerHeight, 0.55);
   }
 
-  // Resolution while moving adapts to how fast frames arrive.
+  // While moving, render at one of a few fixed scales (changing the canvas size
+  // reallocates its buffer, so only switch level when frame times say so).
   const HIGH = Math.min(window.devicePixelRatio || 1, 1.5);
-  let low = 0.6;
+  const LEVELS = [0.3, 0.42, 0.6, 0.85].filter((x) => x < HIGH);
+  let level = Math.min(1, LEVELS.length - 1);
+  let frameAvg = 1 / 60;
+  let fastFrames = 0;
 
-  function draw(scale) {
+  function adapt(dt) {
+    frameAvg += (dt - frameAvg) * 0.2;
+    if (frameAvg > 0.026 && level > 0) {
+      level--;
+      frameAvg = 1 / 60;
+      fastFrames = 0;
+    } else if (frameAvg < 0.019 && level < LEVELS.length - 1) {
+      if (++fastFrames > 30) { level++; fastFrames = 0; }
+    } else {
+      fastFrames = 0;
+    }
+  }
+
+  // Orbit steps per pixel: fewer while moving, where fine detail can't be seen.
+  const ITER_MOVING = 140;
+  const ITER_REST = 320;
+
+  function draw(scale, iters) {
     const w = Math.max(1, Math.round(window.innerWidth * scale));
     const h = Math.max(1, Math.round(window.innerHeight * scale));
     if (canvas.width !== w || canvas.height !== h) {
@@ -408,8 +462,7 @@
     gl.uniform2f(loc.C, w / 2, h * (0.6 + lift()));
     gl.uniform1f(loc.S, Math.min(w, h) * 0.10);
     gl.uniform2fv(loc.V, verts);
-    gl.uniform1i(loc.N, N);
-    gl.uniform1i(loc.I, 320);
+    gl.uniform1i(loc.I, iters);
     gl.drawArrays(gl.TRIANGLES, 0, 3);
   }
 
@@ -434,18 +487,17 @@
 
     const active = energy() > 2e-6 || now - lastInput < 120;
     if (active) {
-      if (dt > 0.03) low = Math.max(0.3, low * 0.9);
-      else if (dt < 0.02) low = Math.min(HIGH, low * 1.03);
-      draw(low);
+      adapt(dt);
+      draw(LEVELS[level] ?? HIGH, ITER_MOVING);
       request();
     } else {
-      draw(HIGH);
+      draw(HIGH, ITER_REST);
       lastT = null;
     }
   }
 
   window.addEventListener('resize', () => {
-    if (reduceMotion) { draw(HIGH); return; }
+    if (reduceMotion) { draw(HIGH, ITER_REST); return; }
     lastInput = performance.now();
     request();
   });
@@ -466,6 +518,7 @@
     // A click pushes the nearest vertex away from the pointer along the circle;
     // the coupling carries the disturbance round to the others.
     window.addEventListener('pointerdown', (e) => {
+      if (e.target.closest && e.target.closest('.friction')) return;
       const cx = window.innerWidth / 2;
       const cy = window.innerHeight * (0.4 - lift());
       const pa = Math.atan2(cy - e.clientY, e.clientX - cx);
@@ -483,9 +536,33 @@
       lastInput = performance.now();
       request();
     });
+
+    // Friction slider: 0..100 maps logarithmically to 0.25x..3x the default.
+    const panel = document.querySelector('.friction');
+    const slider = document.getElementById('friction');
+    const readout = document.getElementById('zeta');
+    const setFriction = () => {
+      friction = 0.25 * Math.pow(12, slider.value / 100);
+      readout.textContent = `ζ ${(friction * ZETA_PER_FRICTION).toFixed(2)}`;
+      try { localStorage.setItem('friction', slider.value); } catch (err) {}
+    };
+    try {
+      const saved = localStorage.getItem('friction');
+      if (saved !== null) slider.value = saved;
+    } catch (err) {}
+    setFriction();
+    slider.addEventListener('input', setFriction);
+    // Releasing the slider gives the shape a small poke so the new damping shows.
+    slider.addEventListener('change', () => {
+      v[0] += 3.5;
+      v[2] -= 2;
+      lastInput = performance.now();
+      request();
+    });
+    panel.hidden = false;
   }
 
-  draw(HIGH);
+  draw(HIGH, ITER_REST);
 })();
 </script>
 </body>
