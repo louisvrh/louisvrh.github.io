@@ -321,28 +321,63 @@
     I: gl.getUniformLocation(prog, 'uIter'),
   };
 
-  // Pentagon inscribed in the unit circle. At rest at the top of the page it is
-  // regular; scrolling and clicking push each vertex along the circle at its own
-  // incommensurate rate, which keeps it convex but breaks the symmetry.
+  // Pentagon inscribed in the unit circle. Each vertex sits at its regular
+  // angle plus an offset AMP * tanh(d), which keeps the polygon convex. The
+  // offsets d form a ring of coupled, damped oscillators with slightly different
+  // natural frequencies; scrolling and clicking kick their velocities, and the
+  // scroll position sets where they come to rest (regular at the top of the page).
   const N = 5;
   const OMEGA = [1.0, 1.618034, 0.732051, 2.236068, 1.414214];
   const AMP = 0.42 * Math.PI / N;
   const SCROLL_GAIN = 0.0018;
+  const K = [0.85, 1.0, 0.75, 1.1, 0.92].map((f) => (2 * Math.PI * f) ** 2);
+  const COUPLE = 14;
+  const SCROLL_KICK = [1.0, -0.7, 0.5, -0.9, 0.8];
+  const KR = (2 * Math.PI * 0.5) ** 2;
   const verts = new Float32Array(16);
 
+  const target = (i) => 0.9 * Math.sin(OMEGA[i] * s);
   let s = window.scrollY * SCROLL_GAIN;
-  let sTarget = s;
-  let kick = 0;
-  let kickVel = 0;
+  const d = Array.from({ length: N }, (_, i) => target(i));
+  const v = new Array(N).fill(0);
+  let r = 0.22 * s;
+  let rv = 0;
+
+  // Damping rises as things slow down, so motion is lively when fast and
+  // settles decisively instead of trembling at the end.
+  const damp = (vel, base, rest, scale) => base + rest / (1 + Math.abs(vel) / scale);
+
+  function step(h) {
+    const x = d.map((di, i) => di - target(i));
+    for (let i = 0; i < N; i++) {
+      const lap = x[(i + N - 1) % N] + x[(i + 1) % N] - 2 * x[i];
+      v[i] += (-K[i] * x[i] + COUPLE * lap - damp(v[i], 2.8, 8, 0.25) * v[i]) * h;
+    }
+    for (let i = 0; i < N; i++) d[i] += v[i] * h;
+    rv += (-KR * (r - 0.22 * s) - damp(rv, 1.6, 3, 0.1) * rv) * h;
+    r += rv * h;
+  }
+
+  function energy() {
+    let e = rv * rv + KR * (r - 0.22 * s) ** 2;
+    for (let i = 0; i < N; i++) e += v[i] * v[i] + K[i] * (d[i] - target(i)) ** 2;
+    return e;
+  }
+
+  function vertexAngle(i) {
+    return Math.PI / 2 + r + (2 * Math.PI * i) / N + AMP * Math.tanh(d[i]);
+  }
 
   function setVertices() {
-    const t = s + kick;
-    const rot = Math.PI / 2 + 0.22 * s + 0.6 * kick;
     for (let i = 0; i < N; i++) {
-      const a = rot + (2 * Math.PI * i) / N + AMP * Math.sin(OMEGA[i] * t);
+      const a = vertexAngle(i);
       verts[2 * i] = Math.cos(a);
       verts[2 * i + 1] = Math.sin(a);
     }
+  }
+
+  function lift() {
+    return Math.min(window.scrollY / window.innerHeight, 0.55);
   }
 
   // Resolution while moving adapts to how fast frames arrive.
@@ -359,8 +394,7 @@
     gl.viewport(0, 0, w, h);
     setVertices();
     // The polygon scrolls away with the header, then stays just above the viewport.
-    const lift = Math.min(window.scrollY / window.innerHeight, 0.55);
-    gl.uniform2f(loc.C, w / 2, h * (0.6 + lift));
+    gl.uniform2f(loc.C, w / 2, h * (0.6 + lift()));
     gl.uniform1f(loc.S, Math.min(w, h) * 0.10);
     gl.uniform2fv(loc.V, verts);
     gl.uniform1i(loc.N, N);
@@ -384,16 +418,10 @@
     const dt = lastT === null ? 1 / 60 : Math.min(0.05, (now - lastT) / 1000);
     lastT = now;
 
-    if (Math.abs(kickVel) > 1e-3) {
-      kick += kickVel * dt;
-      kickVel *= Math.exp(-2.4 * dt);
-    } else {
-      kickVel = 0;
-    }
-    s += (sTarget - s) * (1 - Math.exp(-14 * dt));
-    if (Math.abs(sTarget - s) < 1e-5) s = sTarget;
+    const n = Math.ceil(dt * 240);
+    for (let k = 0; k < n; k++) step(dt / n);
 
-    const active = kickVel !== 0 || s !== sTarget || now - lastInput < 120;
+    const active = energy() > 2e-6 || now - lastInput < 120;
     if (active) {
       if (dt > 0.03) low = Math.max(0.3, low * 0.9);
       else if (dt < 0.02) low = Math.min(HIGH, low * 1.03);
@@ -412,14 +440,35 @@
   });
 
   if (!reduceMotion) {
+    let lastScrollY = window.scrollY;
     window.addEventListener('scroll', () => {
-      sTarget = window.scrollY * SCROLL_GAIN;
+      const delta = window.scrollY - lastScrollY;
+      lastScrollY = window.scrollY;
+      s = window.scrollY * SCROLL_GAIN;
+      const kick = Math.max(-3, Math.min(3, delta * 0.012));
+      for (let i = 0; i < N; i++) v[i] += kick * SCROLL_KICK[i];
+      rv += Math.max(-0.6, Math.min(0.6, delta * 0.0008));
       lastInput = performance.now();
       request();
     }, { passive: true });
+
+    // A click pushes the nearest vertex away from the pointer along the circle;
+    // the coupling carries the disturbance round to the others.
     window.addEventListener('pointerdown', (e) => {
-      const dir = e.clientX < window.innerWidth / 2 ? -1 : 1;
-      kickVel += dir * (0.9 + Math.random() * 0.6);
+      const cx = window.innerWidth / 2;
+      const cy = window.innerHeight * (0.4 - lift());
+      const pa = Math.atan2(cy - e.clientY, e.clientX - cx);
+      let nearest = 0;
+      let gap = Infinity;
+      for (let i = 0; i < N; i++) {
+        const diff = Math.atan2(Math.sin(pa - vertexAngle(i)), Math.cos(pa - vertexAngle(i)));
+        if (Math.abs(diff) < Math.abs(gap)) { gap = diff; nearest = i; }
+      }
+      const push = -Math.sign(gap || 1) * (4.5 + Math.random());
+      v[nearest] += push;
+      v[(nearest + 1) % N] += push * 0.35;
+      v[(nearest + N - 1) % N] += push * 0.35;
+      rv += push * 0.12;
       lastInput = performance.now();
       request();
     });
