@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Louis Razumovsky-Hough · Larp Labs</title>
+<meta name="description" content="Independent work on computation, statistics and quantum algorithms.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #07080c;
+    --panel: rgba(8, 10, 15, 0.80);
+    --line: rgba(255, 255, 255, 0.08);
+    --text: #c9d1d9;
+    --muted: #7d8794;
+    --strong: #eef2f6;
+    --accent: #5fd4e6;
+  }
+  * { box-sizing: border-box; }
+  html { background: var(--bg); }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font: 15px/1.65 'IBM Plex Sans', system-ui, sans-serif;
+    overflow-x: hidden;
+  }
+  a { color: inherit; }
+  #bg {
+    position: fixed;
+    inset: 0;
+    width: 100vw;
+    height: 100vh;
+    height: 100lvh;
+    z-index: 0;
+    pointer-events: none;
+    display: block;
+  }
+  .mono { font-family: 'IBM Plex Mono', ui-monospace, monospace; }
+
+  .hero {
+    position: relative;
+    z-index: 1;
+    min-height: 82vh;
+    display: flex;
+    align-items: flex-end;
+    padding: 0 16px 6vh;
+  }
+  .hero-inner { width: 100%; max-width: 46rem; margin: 0 auto; }
+  .hero h1 {
+    margin: 0;
+    color: var(--strong);
+    font-weight: 600;
+    font-size: clamp(1.6rem, 4vw, 2.2rem);
+    letter-spacing: -0.01em;
+    text-shadow: 0 1px 12px rgba(0, 0, 0, 0.9);
+  }
+  .hero p {
+    margin: 0.35rem 0 0;
+    color: var(--text);
+    text-shadow: 0 1px 10px rgba(0, 0, 0, 0.9);
+  }
+  .hint { margin-top: 1rem !important; font-size: 12px; color: var(--muted) !important; }
+
+  main {
+    position: relative;
+    z-index: 1;
+    max-width: 46rem;
+    margin: 0 auto 10vh;
+    padding: 0 16px;
+  }
+  .panel {
+    background: var(--panel);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: clamp(20px, 4vw, 36px);
+  }
+  section + section { margin-top: 2.2rem; padding-top: 2rem; border-top: 1px solid var(--line); }
+  h2 {
+    margin: 0 0 1rem;
+    font: 500 11px/1 'IBM Plex Mono', monospace;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--accent);
+  }
+  p { margin: 0 0 0.8rem; }
+  p:last-child { margin-bottom: 0; }
+  .item + .item { margin-top: 1.4rem; }
+  .item-head {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 0 1rem;
+  }
+  .item h3 { margin: 0; font-size: 15px; font-weight: 600; color: var(--strong); }
+  .item h3 a { text-decoration: none; border-bottom: 1px solid rgba(95, 212, 230, 0.35); }
+  .item h3 a:hover { color: var(--accent); border-bottom-color: var(--accent); }
+  .date { font: 12px 'IBM Plex Mono', monospace; color: var(--muted); white-space: nowrap; }
+  .item p { margin: 0.3rem 0 0; }
+  ul.plain { list-style: none; margin: 0; padding: 0; }
+  ul.plain li + li { margin-top: 0.7rem; }
+  ul.plain strong { color: var(--strong); font-weight: 600; }
+  dl { margin: 0; display: grid; grid-template-columns: max-content 1fr; gap: 0.5rem 1.2rem; }
+  dt { color: var(--strong); font-weight: 500; }
+  dd { margin: 0; }
+  @media (max-width: 520px) {
+    dl { grid-template-columns: 1fr; gap: 0.1rem; }
+    dd + dt { margin-top: 0.6rem; }
+  }
+  .links a { color: var(--accent); text-decoration: none; }
+  .links a:hover { text-decoration: underline; }
+  footer {
+    margin-top: 1.4rem;
+    font-size: 12px;
+    color: var(--muted);
+    text-align: center;
+    text-shadow: 0 1px 8px rgba(0, 0, 0, 0.9);
+  }
+</style>
+</head>
+<body>
+<canvas id="bg" aria-hidden="true"></canvas>
+
+<header class="hero">
+  <div class="hero-inner">
+    <h1>Louis Razumovsky-Hough</h1>
+    <p>Physics (MSci), Imperial College London. Larp Labs is the name I use for my independent projects.</p>
+    <p class="links mono"><a href="https://github.com/louisvrh" target="_blank" rel="noopener">github.com/louisvrh</a> &nbsp;·&nbsp; <a href="https://linkedin.com/in/lvrh" target="_blank" rel="noopener">linkedin.com/in/lvrh</a></p>
+    <p class="hint mono">The background is an outer billiards map. Scroll or click to deform it.</p>
+  </div>
+</header>
+
+<main>
+  <div class="panel">
+    <section>
+      <h2>Current work</h2>
+      <div class="item">
+        <div class="item-head">
+          <h3>Quantum circuit compression</h3>
+          <span class="date">Oct 2026 –</span>
+        </div>
+        <p>I am entering the Google Quantum AI verifiable quantum circuit compilation competition on Kaggle. The task is to reduce the size of fault-tolerant quantum circuits for chemistry, optimisation and fusion benchmarks, with every candidate circuit checked by the competition's verifier. I am testing search-based and learned circuit-rewriting methods, running on AWS.</p>
+      </div>
+    </section>
+
+    <section>
+      <h2>Projects</h2>
+      <div class="item">
+        <div class="item-head">
+          <h3><a href="https://github.com/louisvrh/crypto-trading-research" target="_blank" rel="noopener">Systematic trading research (LTC/USDT)</a></h3>
+          <span class="date">Jul 2026 –</span>
+        </div>
+        <p>A Python trading pipeline with a backtester and walk-forward optimisation, paper-trading on live Binance data. Auditing the backtester, I fixed look-ahead bias and misaligned data windows, and found that the initial result (Sharpe 0.79 net of costs) did not hold up out of sample. I then added overfitting safeguards (a 25-trade minimum, the deflated Sharpe ratio) and used random-forest feature selection to cut the indicator set from 8 to 5.</p>
+      </div>
+      <div class="item">
+        <div class="item-head">
+          <h3><a href="https://github.com/louisvrh/signal-tracker" target="_blank" rel="noopener">Macro signal research: global trade and energy</a></h3>
+          <span class="date">Sep 2026 –</span>
+        </div>
+        <p>A platform that ingests 12 data sources daily across 25 economies (ship tracking, grid load, trade data), with a point-in-time store, a Streamlit dashboard and a walk-forward backtester. One finding: European power demand has decoupled from industrial output since 2022. Across 7 countries, the median correlation of year-on-year growth fell from 0.41 (2016–19) to −0.07 (2024–25).</p>
+      </div>
+      <div class="item">
+        <div class="item-head">
+          <h3>Sequential Bayesian inference for radiation attenuation</h3>
+          <span class="date">Mar 2026</span>
+        </div>
+        <p>A computational physics project. I fit a nonlinear attenuation model to noisy count-rate data with MCMC (emcee; 64 walkers, 13k steps). Staged priors broke the degeneracy between 5 correlated parameters, bringing the Pearson ρ from 0.91 to below 0.5. Hypothesis testing rejected a single-exponential model (p ∼ 10⁻⁴) in favour of a bi-exponential one (p ≈ 0.12), and the source activity came out within 10% of the reference value.</p>
+      </div>
+      <div class="item">
+        <div class="item-head">
+          <h3>Bayesian modelling of thermal waves</h3>
+          <span class="date">Dec 2025</span>
+        </div>
+        <p>A group project estimating the diffusivity and period-dependent reflectivity of thermal waves in a brass cylinder with MCMC. We found a degeneracy between reflectivity and diffusivity at short periods, which made single-point least-squares estimates unreliable. A reflected-wave model brought the reduced χ² from above 12.5 to 2.4 and gave a diffusivity within 3% of the literature value.</p>
+      </div>
+    </section>
+
+    <section>
+      <h2>Competitions</h2>
+      <ul class="plain">
+        <li><strong>XRPL Hackathon</strong> — 3rd place (£1,500).</li>
+        <li><strong>QHack, Oct 2026</strong> — quantum programming challenges in PennyLane: Monte Carlo option pricing, Shor's and Grover's algorithms, quantum neural networks.</li>
+        <li><strong>Anthropic hackathon, Feb 2026</strong> — led a team that built a random-forest detector for errors in AI outputs.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Tools and methods</h2>
+      <dl>
+        <dt>Code</dt>
+        <dd>Python (PyTorch, PennyLane, scikit-learn, emcee, statsmodels, pandas, SciPy), SQL, DuckDB, LaTeX</dd>
+        <dt>Methods</dt>
+        <dd>Bayesian inference and MCMC, maximum likelihood and regression, hypothesis testing, stochastic processes, linear algebra</dd>
+      </dl>
+    </section>
+  </div>
+
+  <footer class="mono">
+    Background: the outer billiards map T(x) = 2v − x around a pentagon inscribed in a circle,
+    each point shaded by the period of its orbit. Scrolling and clicking move the vertices.
+  </footer>
+</main>
+
+<script>
+(() => {
+  const canvas = document.getElementById('bg');
+  const gl = canvas.getContext('webgl2', { antialias: false, alpha: false, powerPreference: 'high-performance' });
+  if (!gl) return;
+
+  const VERT = `#version 300 es
+  void main() {
+    vec2 p = vec2((gl_VertexID << 1) & 2, gl_VertexID & 2);
+    gl_Position = vec4(p * 2.0 - 1.0, 0.0, 1.0);
+  }`;
+
+  // For a counter-clockwise convex polygon, the outer billiard map reflects x
+  // through the vertex at the end of the chain of edges visible from x.
+  const FRAG = `#version 300 es
+  precision highp float;
+  precision highp int;
+  #define MAXN 8
+  #define MAXI 320
+  uniform vec2 uC;
+  uniform float uS;
+  uniform vec2 uV[MAXN];
+  uniform int uN;
+  uniform int uIter;
+  out vec4 frag;
+
+  float cr(vec2 a, vec2 b) { return a.x * b.y - a.y * b.x; }
+
+  void main() {
+    vec2 x0 = (gl_FragCoord.xy - uC) / uS;
+
+    bool inside = true;
+    float edgeD = 1e9;
+    for (int i = 0; i < MAXN; i++) {
+      if (i >= uN) break;
+      vec2 a = uV[i], b = uV[(i + 1) % uN];
+      vec2 ab = b - a;
+      if (cr(ab, x0 - a) < 0.0) inside = false;
+      float t = clamp(dot(x0 - a, ab) / dot(ab, ab), 0.0, 1.0);
+      edgeD = min(edgeD, length(x0 - a - ab * t));
+    }
+
+    int period = 0;
+    float md = 1e9;
+    if (!inside) {
+      vec2 x = x0;
+      for (int k = 1; k <= MAXI; k++) {
+        if (k > uIter) break;
+        vec2 v = uV[0];
+        float ePrev = cr(uV[uN - 1] - x, uV[0] - x);
+        for (int i = 0; i < MAXN; i++) {
+          if (i >= uN) break;
+          vec2 a = uV[i];
+          float e = cr(a - x, uV[(i + 1) % uN] - x);
+          if (ePrev < 0.0 && e >= 0.0) v = a;
+          ePrev = e;
+        }
+        x = 2.0 * v - x;
+        float d = distance(x, x0);
+        if (d < 1e-3) { period = k; break; }
+        md = min(md, d);
+      }
+    }
+
+    float p = float(period);
+    float boundary = fwidth(p) > 0.0 ? 1.0 : 0.0;
+
+    vec3 base = vec3(0.027, 0.031, 0.047);
+    vec3 col;
+    if (inside) {
+      col = base * 0.55;
+    } else if (period > 0) {
+      float h = fract(p * 0.6180339887);
+      float g = fract(p * 0.2360679775);
+      col = mix(vec3(0.022, 0.040, 0.058), vec3(0.040, 0.150, 0.175), h * h);
+      col = mix(col, vec3(0.095, 0.070, 0.165), smoothstep(0.55, 1.0, g) * 0.8);
+      col *= 0.75 + 0.9 / sqrt(p);
+    } else {
+      col = base + vec3(0.30, 0.80, 0.95) * exp(-md * 10.0) * 0.6;
+    }
+    if (!inside) col += vec3(0.20, 0.62, 0.72) * 0.30 * boundary;
+    col = mix(col, vec3(0.45, 0.92, 1.0), smoothstep(1.6 / uS, 0.0, edgeD) * 0.85);
+
+    float r = length(gl_FragCoord.xy - uC) / length(uC);
+    col *= 1.0 - 0.4 * smoothstep(0.35, 1.15, r);
+    frag = vec4(col, 1.0);
+  }`;
+
+  function compile(type, src) {
+    const s = gl.createShader(type);
+    gl.shaderSource(s, src);
+    gl.compileShader(s);
+    if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s));
+    return s;
+  }
+  const prog = gl.createProgram();
+  try {
+    gl.attachShader(prog, compile(gl.VERTEX_SHADER, VERT));
+    gl.attachShader(prog, compile(gl.FRAGMENT_SHADER, FRAG));
+    gl.linkProgram(prog);
+    if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(prog));
+  } catch (err) {
+    console.warn(err);
+    return;
+  }
+  gl.useProgram(prog);
+  gl.bindVertexArray(gl.createVertexArray());
+  const loc = {
+    C: gl.getUniformLocation(prog, 'uC'),
+    S: gl.getUniformLocation(prog, 'uS'),
+    V: gl.getUniformLocation(prog, 'uV[0]'),
+    N: gl.getUniformLocation(prog, 'uN'),
+    I: gl.getUniformLocation(prog, 'uIter'),
+  };
+
+  // Pentagon inscribed in the unit circle. At rest at the top of the page it is
+  // regular; scrolling and clicking push each vertex along the circle at its own
+  // incommensurate rate, which keeps it convex but breaks the symmetry.
+  const N = 5;
+  const OMEGA = [1.0, 1.618034, 0.732051, 2.236068, 1.414214];
+  const AMP = 0.42 * Math.PI / N;
+  const SCROLL_GAIN = 0.0018;
+  const verts = new Float32Array(16);
+
+  let s = window.scrollY * SCROLL_GAIN;
+  let sTarget = s;
+  let kick = 0;
+  let kickVel = 0;
+
+  function setVertices() {
+    const t = s + kick;
+    const rot = Math.PI / 2 + 0.22 * s + 0.6 * kick;
+    for (let i = 0; i < N; i++) {
+      const a = rot + (2 * Math.PI * i) / N + AMP * Math.sin(OMEGA[i] * t);
+      verts[2 * i] = Math.cos(a);
+      verts[2 * i + 1] = Math.sin(a);
+    }
+  }
+
+  // Resolution while moving adapts to how fast frames arrive.
+  const HIGH = Math.min(window.devicePixelRatio || 1, 1.5);
+  let low = 0.6;
+
+  function draw(scale) {
+    const w = Math.max(1, Math.round(window.innerWidth * scale));
+    const h = Math.max(1, Math.round(window.innerHeight * scale));
+    if (canvas.width !== w || canvas.height !== h) {
+      canvas.width = w;
+      canvas.height = h;
+    }
+    gl.viewport(0, 0, w, h);
+    setVertices();
+    // The polygon scrolls away with the header, then stays just above the viewport.
+    const lift = Math.min(window.scrollY / window.innerHeight, 0.55);
+    gl.uniform2f(loc.C, w / 2, h * (0.6 + lift));
+    gl.uniform1f(loc.S, Math.min(w, h) * 0.10);
+    gl.uniform2fv(loc.V, verts);
+    gl.uniform1i(loc.N, N);
+    gl.uniform1i(loc.I, 320);
+    gl.drawArrays(gl.TRIANGLES, 0, 3);
+  }
+
+  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  let raf = 0;
+  let lastT = null;
+  let lastInput = 0;
+
+  function request() {
+    if (!raf) raf = requestAnimationFrame(frame);
+  }
+
+  // Draws at low resolution while anything is changing, then once at full
+  // resolution and stops: with no input the background does not move.
+  function frame(now) {
+    raf = 0;
+    const dt = lastT === null ? 1 / 60 : Math.min(0.05, (now - lastT) / 1000);
+    lastT = now;
+
+    if (Math.abs(kickVel) > 1e-3) {
+      kick += kickVel * dt;
+      kickVel *= Math.exp(-2.4 * dt);
+    } else {
+      kickVel = 0;
+    }
+    s += (sTarget - s) * (1 - Math.exp(-14 * dt));
+    if (Math.abs(sTarget - s) < 1e-5) s = sTarget;
+
+    const active = kickVel !== 0 || s !== sTarget || now - lastInput < 120;
+    if (active) {
+      if (dt > 0.03) low = Math.max(0.3, low * 0.9);
+      else if (dt < 0.02) low = Math.min(HIGH, low * 1.03);
+      draw(low);
+      request();
+    } else {
+      draw(HIGH);
+      lastT = null;
+    }
+  }
+
+  window.addEventListener('resize', () => {
+    if (reduceMotion) { draw(HIGH); return; }
+    lastInput = performance.now();
+    request();
+  });
+
+  if (!reduceMotion) {
+    window.addEventListener('scroll', () => {
+      sTarget = window.scrollY * SCROLL_GAIN;
+      lastInput = performance.now();
+      request();
+    }, { passive: true });
+    window.addEventListener('pointerdown', (e) => {
+      const dir = e.clientX < window.innerWidth / 2 ? -1 : 1;
+      kickVel += dir * (0.9 + Math.random() * 0.6);
+      lastInput = performance.now();
+      request();
+    });
+  }
+
+  draw(HIGH);
+})();
+</script>
+</body>
+</html>
