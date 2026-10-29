@@ -114,6 +114,10 @@
   }
   .links a { color: var(--accent); text-decoration: none; }
   .links a:hover { text-decoration: underline; }
+  @media (max-width: 520px) {
+    .links a { display: block; width: fit-content; }
+    .links .sep { display: none; }
+  }
   .friction {
     position: fixed;
     right: 16px;
@@ -133,7 +137,22 @@
   }
   .friction[hidden] { display: none; }
   .friction input { width: 110px; accent-color: var(--accent); margin: 0; }
-  .friction output { min-width: 4.5em; color: var(--text); font-variant-numeric: tabular-nums; }
+  .friction button {
+    min-width: 4.5em;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--text);
+    font: inherit;
+    font-variant-numeric: tabular-nums;
+    text-align: left;
+  }
+  @media (max-width: 640px) {
+    .friction { padding: 6px 12px; }
+    .friction:not(.open) label,
+    .friction:not(.open) input { display: none; }
+    .friction button { min-width: 0; cursor: pointer; }
+  }
   footer {
     margin-top: 1.4rem;
     font-size: 12px;
@@ -148,14 +167,14 @@
 <div class="friction mono" hidden>
   <label for="friction">friction</label>
   <input type="range" id="friction" min="0" max="100" value="75" step="1">
-  <output id="zeta" for="friction">ζ 1.29</output>
+  <button type="button" id="zeta" aria-expanded="false" aria-controls="friction" aria-label="Friction setting">ζ 1.29</button>
 </div>
 
 <header class="hero">
   <div class="hero-inner">
     <h1>Louis Razumovsky-Hough</h1>
     <p>Physics (MSci), Imperial College London. Airy Labs is the name I use for my independent projects.</p>
-    <p class="links mono"><a href="https://github.com/louisvrh" target="_blank" rel="noopener">github.com/louisvrh</a> &nbsp;·&nbsp; <a href="https://linkedin.com/in/lvrh" target="_blank" rel="noopener">linkedin.com/in/lvrh</a></p>
+    <p class="links mono"><a href="https://github.com/louisvrh" target="_blank" rel="noopener">github.com/louisvrh</a><span class="sep"> &nbsp;·&nbsp; </span><a href="https://linkedin.com/in/lvrh" target="_blank" rel="noopener">linkedin.com/in/lvrh</a></p>
     <p class="hint mono">The background is an outer billiards map. Scroll or click to deform it.</p>
   </div>
 </header>
@@ -253,6 +272,7 @@
   #define MAXI 320
   uniform vec2 uC;
   uniform float uS;
+  uniform float uPx;
   uniform vec2 uV[N];
   uniform int uIter;
   out vec4 frag;
@@ -313,7 +333,9 @@
     }
 
     float p = float(period);
-    float boundary = period > 0 ? 1.0 - smoothstep(0.35, 1.25, sqrt(bd2) * uS) : 0.0;
+    // Line widths are set in CSS pixels (uPx canvas pixels each), never under one canvas pixel.
+    float lw = max(uPx * 0.85, 1.0);
+    float boundary = period > 0 ? 1.0 - smoothstep(0.35 * lw, 1.25 * lw, sqrt(bd2) * uS) : 0.0;
 
     vec3 base = vec3(0.027, 0.031, 0.047);
     vec3 col;
@@ -329,7 +351,7 @@
       col = base + vec3(0.30, 0.80, 0.95) * exp(-sqrt(md2) * 10.0) * 0.6;
     }
     if (!inside) col += vec3(0.20, 0.62, 0.72) * 0.30 * boundary;
-    col = mix(col, vec3(0.45, 0.92, 1.0), smoothstep(1.6 / uS, 0.0, sqrt(edgeD2)) * 0.85);
+    col = mix(col, vec3(0.45, 0.92, 1.0), smoothstep(1.6 * max(uPx, 1.0) / uS, 0.0, sqrt(edgeD2)) * 0.85);
 
     float r = length(gl_FragCoord.xy - uC) / length(uC);
     col *= 1.0 - 0.4 * smoothstep(0.35, 1.15, r);
@@ -358,6 +380,7 @@
   const loc = {
     C: gl.getUniformLocation(prog, 'uC'),
     S: gl.getUniformLocation(prog, 'uS'),
+    P: gl.getUniformLocation(prog, 'uPx'),
     V: gl.getUniformLocation(prog, 'uV[0]'),
     I: gl.getUniformLocation(prog, 'uIter'),
   };
@@ -424,11 +447,18 @@
     return Math.min(window.scrollY / window.innerHeight, 0.55);
   }
 
-  // While moving, render at one of a few fixed scales (changing the canvas size
+  // The still frame gets a fixed pixel budget, so a phone renders at its full
+  // density and a large monitor doesn't render more than a laptop. While moving,
+  // render at one of a few fractions of that (changing the canvas size
   // reallocates its buffer, so only switch level when frame times say so).
-  const HIGH = Math.min(window.devicePixelRatio || 1, 1.5);
-  const LEVELS = [0.3, 0.42, 0.6, 0.85].filter((x) => x < HIGH);
-  let level = Math.min(1, LEVELS.length - 1);
+  const PIXEL_BUDGET = 3e6;
+  const LEVELS = [0.2, 0.28, 0.4, 0.57];
+  let level = 1;
+
+  function stillScale() {
+    const fit = Math.sqrt(PIXEL_BUDGET / (window.innerWidth * window.innerHeight));
+    return Math.max(0.75, Math.min(window.devicePixelRatio || 1, fit));
+  }
   let frameAvg = 1 / 60;
   let fastFrames = 0;
 
@@ -461,6 +491,7 @@
     // The polygon scrolls away with the header, then stays just above the viewport.
     gl.uniform2f(loc.C, w / 2, h * (0.6 + lift()));
     gl.uniform1f(loc.S, Math.min(w, h) * 0.10);
+    gl.uniform1f(loc.P, scale);
     gl.uniform2fv(loc.V, verts);
     gl.uniform1i(loc.I, iters);
     gl.drawArrays(gl.TRIANGLES, 0, 3);
@@ -488,21 +519,23 @@
     const active = energy() > 2e-6 || now - lastInput < 120;
     if (active) {
       adapt(dt);
-      draw(LEVELS[level] ?? HIGH, ITER_MOVING);
+      draw(stillScale() * LEVELS[level], ITER_MOVING);
       request();
     } else {
-      draw(HIGH, ITER_REST);
+      draw(stillScale(), ITER_REST);
       lastT = null;
     }
   }
 
   window.addEventListener('resize', () => {
-    if (reduceMotion) { draw(HIGH, ITER_REST); return; }
+    if (reduceMotion) { draw(stillScale(), ITER_REST); return; }
     lastInput = performance.now();
     request();
   });
 
   if (!reduceMotion) {
+    const panel = document.querySelector('.friction');
+    const readout = document.getElementById('zeta');
     let lastScrollY = window.scrollY;
     window.addEventListener('scroll', () => {
       const delta = window.scrollY - lastScrollY;
@@ -519,6 +552,10 @@
     // the coupling carries the disturbance round to the others.
     window.addEventListener('pointerdown', (e) => {
       if (e.target.closest && e.target.closest('.friction')) return;
+      if (panel.classList.contains('open')) {
+        panel.classList.remove('open');
+        readout.setAttribute('aria-expanded', 'false');
+      }
       const cx = window.innerWidth / 2;
       const cy = window.innerHeight * (0.4 - lift());
       const pa = Math.atan2(cy - e.clientY, e.clientX - cx);
@@ -538,9 +575,12 @@
     });
 
     // Friction slider: logarithmic, 3x the base damping (ζ ≈ 1.29) at 75, halving every 25.
-    const panel = document.querySelector('.friction');
     const slider = document.getElementById('friction');
-    const readout = document.getElementById('zeta');
+    // On narrow screens the panel is collapsed to its readout; tapping it opens the slider.
+    readout.addEventListener('click', () => {
+      const open = panel.classList.toggle('open');
+      readout.setAttribute('aria-expanded', String(open));
+    });
     const setFriction = () => {
       friction = 3 * Math.pow(2, (slider.value - 75) / 25);
       readout.textContent = `ζ ${(friction * ZETA_PER_FRICTION).toFixed(2)}`;
@@ -562,7 +602,7 @@
     panel.hidden = false;
   }
 
-  draw(HIGH, ITER_REST);
+  draw(stillScale(), ITER_REST);
 })();
 </script>
 </body>
