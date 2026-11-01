@@ -155,6 +155,7 @@
   <div class="hero-inner">
     <h1>Louis Razumovsky-Hough</h1>
     <p>Physics (MSci), Imperial College London. Airy Labs is the name I use for my independent projects.</p>
+    <p>I'm interested in Bayesian parameter estimation, deep and graph neural networks, quantum circuit compression and statistical mechanics.</p>
     <p class="links mono"><a href="https://github.com/louisvrh" target="_blank" rel="noopener">github.com/louisvrh</a> &nbsp;·&nbsp; <a href="https://linkedin.com/in/lvrh" target="_blank" rel="noopener">linkedin.com/in/lvrh</a></p>
     <p class="hint mono">The background is an outer billiards map. Scroll or click to deform it.</p>
   </div>
@@ -177,6 +178,13 @@
       <h2>Projects</h2>
       <div class="item">
         <div class="item-head">
+          <h3>Sterile-neutrino search in MicroBooNE data</h3>
+          <span class="date">Oct 2026</span>
+        </div>
+        <p>A machine-learning research project testing the 3+1 sterile-neutrino explanation of the LSND and MiniBooNE anomalies through muon-neutrino disappearance. I selected charged-current ν<sub>μ</sub> events with gradient-boosted trees (XGBoost, tuned with Optuna and 5-fold cross-validation), choosing the cut by expected sensitivity (82% purity, 94% efficiency), then fit the oscillation parameters (Δm², sin²2θ) with a χ² grid search and an overall normalisation nuisance parameter. I found no evidence for oscillation and set 90% CL limits (sin²2θ &lt; 0.084 at Δm² = 3 eV²), excluding 5.2% of the LSND-allowed region. Above 3 eV² the sterile signal is degenerate with the overall normalisation, which weakens the limits by about 2.5× when the normalisation is left free.</p>
+      </div>
+      <div class="item">
+        <div class="item-head">
           <h3><a href="https://github.com/louisvrh/crypto-trading-research" target="_blank" rel="noopener">Systematic trading research (LTC/USDT)</a></h3>
           <span class="date">Jul 2026 –</span>
         </div>
@@ -191,10 +199,10 @@
       </div>
       <div class="item">
         <div class="item-head">
-          <h3>Sequential Bayesian inference for radiation attenuation</h3>
+          <h3>Sequential Bayesian inference for beta-radiation attenuation</h3>
           <span class="date">Mar 2026</span>
         </div>
-        <p>A computational physics project. I fit a nonlinear attenuation model to noisy count-rate data with MCMC (emcee; 64 walkers, 13k steps). Staged priors broke the degeneracy between 5 correlated parameters, bringing the Pearson ρ from 0.91 to below 0.5. Hypothesis testing rejected a single-exponential model (p ∼ 10⁻⁴) in favour of a bi-exponential one (p ≈ 0.12), and the source activity came out within 10% of the reference value.</p>
+        <p>A computational physics project. I fit a two-component attenuation model to Sr-90 beta-radiation count-rate data with sequential Bayesian inference (emcee; 64 walkers, 13k steps), validated against Geant4 Monte Carlo simulations. Staged, simulation-calibrated priors brought the correlations between the attenuation coefficients below |ρ| = 0.5 and reduced the free parameters to three, while a degeneracy between the activity and the spectral fraction persisted (|ρ| ≈ 0.91). A single-exponential model was rejected (p ∼ 10⁻⁴) in favour of a bi-exponential one (p ∼ 0.12), confirming spectral hardening, and the measured activity of (4.18 ± 0.43) MBq is consistent with the quoted 4.4 MBq.</p>
       </div>
       <div class="item">
         <div class="item-head">
@@ -208,8 +216,8 @@
     <section>
       <h2>Competitions</h2>
       <ul class="plain">
-        <li><strong>XRPL Hackathon</strong> — 3rd place (£1,500).</li>
-        <li><strong>QHack, Oct 2026</strong> — quantum programming challenges in PennyLane: Monte Carlo option pricing, Shor's and Grover's algorithms, quantum neural networks.</li>
+        <li><strong>XRPL CBT Hackathon, Oct 2026</strong> — 3rd place (£1,500), team leader. We optimised gradient-boosted trees and graph neural networks, using soft aggregations and adversarial validation, to detect money-laundering patterns.</li>
+        <li><strong>QHack, Oct 2026</strong> — quantum computing challenges in PennyLane using Shor's and Grover's algorithms, VQE/QAOA solvers and quantum neural networks.</li>
         <li><strong>Anthropic hackathon, Feb 2026</strong> — led a team that built a random-forest detector for errors in AI outputs.</li>
       </ul>
     </section>
@@ -218,9 +226,9 @@
       <h2>Tools and methods</h2>
       <dl>
         <dt>Code</dt>
-        <dd>Python (PyTorch, PennyLane, scikit-learn, emcee, statsmodels, pandas, SciPy), SQL, DuckDB, LaTeX</dd>
+        <dd>Python (scikit-learn, XGBoost, Optuna, PyTorch, PennyLane, emcee, statsmodels, pandas, SciPy), SQL</dd>
         <dt>Methods</dt>
-        <dd>Bayesian inference and MCMC, maximum likelihood and regression, hypothesis testing, stochastic processes, linear algebra</dd>
+        <dd>Bayesian inference and MCMC, maximum likelihood and regression, hypothesis testing, gradient-boosted trees, stochastic processes, linear algebra</dd>
       </dl>
     </section>
   </div>
