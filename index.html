@@ -28,7 +28,7 @@
     overflow-x: hidden;
   }
   a { color: inherit; }
-  #bg {
+  #bg, #ov {
     position: fixed;
     inset: 0;
     width: 100vw;
@@ -132,6 +132,43 @@
     border-radius: 999px;
   }
   .friction[hidden] { display: none; }
+  .modes {
+    position: fixed;
+    left: 16px;
+    bottom: 16px;
+    z-index: 5;
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    padding: 5px 6px 5px 12px;
+    font-size: 11px;
+    color: var(--muted);
+    background: rgba(8, 10, 15, 0.72);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid var(--line);
+    border-radius: 999px;
+  }
+  .modes[hidden] { display: none; }
+  .modes > span { margin-right: 6px; }
+  .modes button {
+    padding: 4px 8px;
+    border: 0;
+    border-radius: 999px;
+    background: none;
+    color: var(--text);
+    font: inherit;
+    cursor: pointer;
+  }
+  .modes button b { font-weight: 500; color: var(--accent); }
+  .modes button[aria-pressed="true"] { background: rgba(95, 212, 230, 0.16); color: var(--strong); }
+  .modes button:focus-visible { outline: 1px solid var(--accent); }
+  @media (max-width: 760px) {
+    .modes button span { display: none; }
+  }
+  @media (max-width: 560px) {
+    .modes { left: auto; right: 16px; bottom: 62px; }
+  }
   .friction input { width: 110px; accent-color: var(--accent); margin: 0; }
   .friction output { min-width: 4.5em; color: var(--text); font-variant-numeric: tabular-nums; }
   footer {
@@ -145,6 +182,15 @@
 </head>
 <body>
 <canvas id="bg" aria-hidden="true"></canvas>
+<canvas id="ov" aria-hidden="true"></canvas>
+<div class="modes mono" role="group" aria-label="What a click does" hidden>
+  <span>click</span>
+  <button type="button" data-mode="1" aria-pressed="true" title="Trace the orbit of the clicked point"><b>1</b><span> orbit</span></button>
+  <button type="button" data-mode="2" aria-pressed="false" title="Light up every tile with the clicked point's period"><b>2</b><span> tiles</span></button>
+  <button type="button" data-mode="3" aria-pressed="false" title="Zoom in 3x around the clicked point"><b>3</b><span> zoom</span></button>
+  <button type="button" data-mode="4" aria-pressed="false" title="Click outside the polygon to add a side, inside to remove one"><b>4</b><span> sides</span></button>
+  <button type="button" data-mode="5" aria-pressed="false" title="Send a ripple out from the clicked point"><b>5</b><span> ripple</span></button>
+</div>
 <div class="friction mono" hidden>
   <label for="friction">friction</label>
   <input type="range" id="friction" min="0" max="100" value="75" step="1">
@@ -157,7 +203,7 @@
     <p>Physics (MSci), Imperial College London. Airy Labs is the name I use for my independent projects.</p>
     <p>I'm interested in Bayesian parameter estimation, deep and graph neural networks, quantum circuit compression and statistical mechanics.</p>
     <p class="links mono"><a href="https://github.com/louisvrh" target="_blank" rel="noopener">github.com/louisvrh</a> &nbsp;·&nbsp; <a href="https://linkedin.com/in/lvrh" target="_blank" rel="noopener">linkedin.com/in/lvrh</a></p>
-    <p class="hint mono">The background is an outer billiards map. Scroll or click to deform it.</p>
+    <p class="hint mono">The background is an outer billiards map. Scroll to deform it; click to explore it. The buttons in the corner change what a click does.</p>
   </div>
 </header>
 
@@ -234,14 +280,17 @@
   </div>
 
   <footer class="mono">
-    Background: the outer billiards map T(x) = 2v − x around a pentagon inscribed in a circle,
-    each point shaded by the period of its orbit. Scrolling and clicking move the vertices.
+    Background: the outer billiards map T(x) = 2v − x around a polygon inscribed in a circle,
+    each point shaded by the period of its orbit. Scrolling moves the vertices; a click traces an
+    orbit, lights up tiles of one period, zooms, adds or removes a side, or sends a ripple.
   </footer>
 </main>
 
 <script>
 (() => {
   const canvas = document.getElementById('bg');
+  const overlay = document.getElementById('ov');
+  const ctx = overlay.getContext('2d');
   const gl = canvas.getContext('webgl2', { antialias: false, alpha: false, powerPreference: 'high-performance' });
   if (!gl) return;
 
@@ -252,17 +301,21 @@
   }`;
 
   // For a counter-clockwise convex polygon, the outer billiard map reflects x
-  // through the vertex at the end of the chain of edges visible from x. The
-  // polygon size is fixed so the compiler can unroll every loop over vertices.
-  const N = 5;
-  const FRAG = `#version 300 es
+  // through the vertex at the end of the chain of edges visible from x. Each
+  // vertex count gets its own program so the compiler can unroll the loops.
+  const fragSource = (N) => `#version 300 es
   precision highp float;
   #define N ${N}
   #define MAXI 320
   uniform vec2 uC;
   uniform float uS;
+  uniform float uZoom;
+  uniform vec2 uOff;
   uniform vec2 uV[N];
   uniform int uIter;
+  uniform int uHiP;
+  uniform float uHiA;
+  uniform vec4 uRip;
   out vec4 frag;
 
   float cr(vec2 a, vec2 b) { return a.x * b.y - a.y * b.x; }
@@ -274,7 +327,19 @@
   }
 
   void main() {
-    vec2 x0 = (gl_FragCoord.xy - uC) / uS;
+    float scale = uS * uZoom;
+    vec2 x0 = (gl_FragCoord.xy - uC) / scale + uOff;
+
+    // A ripple is a ring (centre uRip.xy, radius uRip.z, strength uRip.w) that
+    // pushes points outward as it passes, bending the tiles.
+    float ring = 0.0;
+    if (uRip.w > 0.0) {
+      vec2 dr = x0 - uRip.xy;
+      float dist = length(dr);
+      float w = 0.18 / uZoom;
+      ring = exp(-(dist - uRip.z) * (dist - uRip.z) / (w * w)) * uRip.w;
+      if (dist > 1e-6) x0 += dr / dist * ring * 0.12 / uZoom;
+    }
 
     // cr(V[i] - x, V[i+1] - x) = C[i] + cr(E[i], x): which side of edge i x is on.
     vec2 V[N], E[N];
@@ -290,7 +355,7 @@
     for (int i = 0; i < N; i++) {
       if (C[i] + cr(E[i], x0) < 0.0) inside = false;
       vec2 q = x0 - V[i];
-      vec2 r = q - E[i] * clamp(dot(q, E[i]) / dot(E[i], E[i]), 0.0, 1.0);
+      vec2 r = q - E[i] * clamp(dot(q, E[i]) / max(dot(E[i], E[i]), 1e-12), 0.0, 1.0);
       edgeD2 = min(edgeD2, dot(r, r));
     }
 
@@ -321,7 +386,7 @@
     }
 
     float p = float(period);
-    float boundary = period > 0 ? 1.0 - smoothstep(0.35, 1.25, sqrt(bd2) * uS) : 0.0;
+    float boundary = period > 0 ? 1.0 - smoothstep(0.35, 1.25, sqrt(bd2) * scale) : 0.0;
 
     vec3 base = vec3(0.027, 0.031, 0.047);
     vec3 col;
@@ -333,11 +398,13 @@
       col = mix(vec3(0.022, 0.040, 0.058), vec3(0.040, 0.150, 0.175), h * h);
       col = mix(col, vec3(0.095, 0.070, 0.165), smoothstep(0.55, 1.0, g) * 0.8);
       col *= 0.75 + 0.9 / sqrt(p);
+      if (period == uHiP) col += vec3(0.16, 0.50, 0.62) * uHiA;
     } else {
       col = base + vec3(0.30, 0.80, 0.95) * exp(-sqrt(md2) * 10.0) * 0.6;
     }
     if (!inside) col += vec3(0.20, 0.62, 0.72) * 0.30 * boundary;
-    col = mix(col, vec3(0.45, 0.92, 1.0), smoothstep(1.6 / uS, 0.0, sqrt(edgeD2)) * 0.85);
+    col += vec3(0.30, 0.80, 0.95) * ring * 0.35;
+    col = mix(col, vec3(0.45, 0.92, 1.0), smoothstep(1.6 / scale, 0.0, sqrt(edgeD2)) * 0.85);
 
     float r = length(gl_FragCoord.xy - uC) / length(uC);
     col *= 1.0 - 0.4 * smoothstep(0.35, 1.15, r);
@@ -345,49 +412,57 @@
   }`;
 
   function compile(type, src) {
-    const s = gl.createShader(type);
-    gl.shaderSource(s, src);
-    gl.compileShader(s);
-    if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s));
-    return s;
+    const sh = gl.createShader(type);
+    gl.shaderSource(sh, src);
+    gl.compileShader(sh);
+    if (!gl.getShaderParameter(sh, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(sh));
+    return sh;
   }
-  const prog = gl.createProgram();
-  try {
+
+  const programs = new Map();
+  function program(N) {
+    if (programs.has(N)) return programs.get(N);
+    const prog = gl.createProgram();
     gl.attachShader(prog, compile(gl.VERTEX_SHADER, VERT));
-    gl.attachShader(prog, compile(gl.FRAGMENT_SHADER, FRAG));
+    gl.attachShader(prog, compile(gl.FRAGMENT_SHADER, fragSource(N)));
     gl.linkProgram(prog);
     if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(prog));
+    const u = (name) => gl.getUniformLocation(prog, name);
+    const p = {
+      prog, C: u('uC'), S: u('uS'), Z: u('uZoom'), O: u('uOff'), V: u('uV[0]'),
+      I: u('uIter'), HP: u('uHiP'), HA: u('uHiA'), R: u('uRip'),
+    };
+    programs.set(N, p);
+    return p;
+  }
+  try {
+    program(5);
   } catch (err) {
     console.warn(err);
     return;
   }
-  gl.useProgram(prog);
   gl.bindVertexArray(gl.createVertexArray());
-  const loc = {
-    C: gl.getUniformLocation(prog, 'uC'),
-    S: gl.getUniformLocation(prog, 'uS'),
-    V: gl.getUniformLocation(prog, 'uV[0]'),
-    I: gl.getUniformLocation(prog, 'uIter'),
-  };
 
-  // Pentagon inscribed in the unit circle. Each vertex sits at its regular
+  // Polygon inscribed in the unit circle. Each vertex sits at its regular
   // angle plus an offset AMP * tanh(d), which keeps the polygon convex. The
   // offsets d form a ring of coupled, damped oscillators with slightly different
-  // natural frequencies; scrolling and clicking kick their velocities, and the
-  // scroll position sets where they come to rest (regular at the top of the page).
-  const OMEGA = [1.0, 1.618034, 0.732051, 2.236068, 1.414214];
-  const AMP = 0.42 * Math.PI / N;
+  // natural frequencies; scrolling kicks their velocities, and the scroll
+  // position sets where they come to rest (regular at the top of the page).
+  const MAXV = 8;
+  const MINV = 3;
+  const OMEGA = [1.0, 1.618034, 0.732051, 2.236068, 1.414214, 1.259921, 1.912931, 0.879385];
+  const FREQ = [0.85, 1.0, 0.75, 1.1, 0.92, 0.8, 1.05, 0.95];
+  const K = FREQ.map((f) => (2 * Math.PI * f) ** 2);
+  const SCROLL_KICK = [1.0, -0.7, 0.5, -0.9, 0.8, -0.6, 0.75, -0.85];
   const SCROLL_GAIN = 0.0018;
-  const K = [0.85, 1.0, 0.75, 1.1, 0.92].map((f) => (2 * Math.PI * f) ** 2);
   const COUPLE = 14;
-  const SCROLL_KICK = [1.0, -0.7, 0.5, -0.9, 0.8];
   const KR = (2 * Math.PI * 0.5) ** 2;
-  const verts = new Float32Array(2 * N);
 
-  const target = (i) => 0.9 * Math.sin(OMEGA[i] * s);
+  let n = 5;
   let s = window.scrollY * SCROLL_GAIN;
-  const d = Array.from({ length: N }, (_, i) => target(i));
-  const v = new Array(N).fill(0);
+  const target = (i) => 0.9 * Math.sin(OMEGA[i] * s);
+  const d = Array.from({ length: MAXV }, (_, i) => target(i));
+  const v = new Array(MAXV).fill(0);
   let r = 0.22 * s;
   let rv = 0;
 
@@ -396,40 +471,237 @@
   // scales all of it; ZETA_PER_FRICTION converts to a damping ratio for display.
   const damp = (vel, base, rest, scale) => base + rest / (1 + Math.abs(vel) / scale);
   const BASE_DAMP = 5;
-  const ZETA_PER_FRICTION = BASE_DAMP / (2 * K.reduce((a, k) => a + Math.sqrt(k), 0) / N);
+  const ZETA_PER_FRICTION = BASE_DAMP / (2 * K.slice(0, 5).reduce((a, k) => a + Math.sqrt(k), 0) / 5);
   let friction = 3;
 
   function step(h) {
     const x = d.map((di, i) => di - target(i));
-    for (let i = 0; i < N; i++) {
-      const lap = x[(i + N - 1) % N] + x[(i + 1) % N] - 2 * x[i];
+    for (let i = 0; i < n; i++) {
+      const lap = x[(i + n - 1) % n] + x[(i + 1) % n] - 2 * x[i];
       v[i] += (-K[i] * x[i] + COUPLE * lap - friction * damp(v[i], BASE_DAMP, 8, 0.25) * v[i]) * h;
     }
-    for (let i = 0; i < N; i++) d[i] += v[i] * h;
+    for (let i = 0; i < n; i++) d[i] += v[i] * h;
     rv += (-KR * (r - 0.22 * s) - friction * damp(rv, 2.5, 3, 0.1) * rv) * h;
     r += rv * h;
   }
 
   function energy() {
     let e = rv * rv + KR * (r - 0.22 * s) ** 2;
-    for (let i = 0; i < N; i++) e += v[i] * v[i] + K[i] * (d[i] - target(i)) ** 2;
+    for (let i = 0; i < n; i++) e += v[i] * v[i] + K[i] * (d[i] - target(i)) ** 2;
     return e;
   }
 
-  function vertexAngle(i) {
-    return Math.PI / 2 + r + (2 * Math.PI * i) / N + AMP * Math.tanh(d[i]);
+  function physicsVerts() {
+    const out = new Float64Array(2 * n);
+    const amp = 0.42 * Math.PI / n;
+    for (let i = 0; i < n; i++) {
+      const a = Math.PI / 2 + r + (2 * Math.PI * i) / n + amp * Math.tanh(d[i]);
+      out[2 * i] = Math.cos(a);
+      out[2 * i + 1] = Math.sin(a);
+    }
+    return out;
   }
 
-  function setVertices() {
-    for (let i = 0; i < N; i++) {
-      const a = vertexAngle(i);
-      verts[2 * i] = Math.cos(a);
-      verts[2 * i + 1] = Math.sin(a);
+  function settlePhysics() {
+    for (let i = 0; i < n; i++) { d[i] = target(i); v[i] = 0; }
+  }
+
+  // The polygon actually drawn: the physics polygon, or a morph between two
+  // vertex lists of equal length when a side is being added or removed.
+  let morph = null;
+  let cur = physicsVerts();
+  let curN = n;
+
+  function updatePolygon(now) {
+    if (!morph) {
+      cur = physicsVerts();
+      curN = n;
+      return false;
     }
+    const t = Math.min(1, (now - morph.t0) / morph.dur);
+    const e = t * t * (3 - 2 * t);
+    const to = morph.to();
+    cur = new Float64Array(2 * morph.count);
+    for (let i = 0; i < cur.length; i++) cur[i] = morph.from[i] + (to[i] - morph.from[i]) * e;
+    curN = morph.count;
+    if (t >= 1) morph = null;
+    return true;
   }
 
   function lift() {
     return Math.min(window.scrollY / window.innerHeight, 0.55);
+  }
+
+  // View: world point x appears at centre + (x - off) * baseScale * zoom (CSS px, y up).
+  let zoom = 1;
+  let off = [0, 0];
+  let zoomSteps = 0;
+  let zoomAnim = null;
+  const baseScale = () => Math.min(window.innerWidth, window.innerHeight) * 0.10;
+  const centre = () => [window.innerWidth / 2, window.innerHeight * (0.4 - lift())];
+
+  function toWorld(px, py) {
+    const [cx, cy] = centre();
+    const k = baseScale() * zoom;
+    return [(px - cx) / k + off[0], (cy - py) / k + off[1]];
+  }
+
+  function toScreen(w) {
+    const [cx, cy] = centre();
+    const k = baseScale() * zoom;
+    return [cx + (w[0] - off[0]) * k, cy - (w[1] - off[1]) * k];
+  }
+
+  function updateZoom(now) {
+    if (!zoomAnim) return false;
+    const a = zoomAnim;
+    const t = Math.min(1, (now - a.t0) / a.dur);
+    const e = t * t * (3 - 2 * t);
+    zoom = a.z0 * Math.pow(a.z1 / a.z0, e);
+    if (a.anchor) {
+      // Keep the clicked point under the cursor while zooming.
+      const k = baseScale() * zoom;
+      off = [a.anchor.w[0] - a.anchor.sv[0] / k, a.anchor.w[1] - a.anchor.sv[1] / k];
+    } else {
+      off = [a.off0[0] * (1 - e), a.off0[1] * (1 - e)];
+    }
+    if (t >= 1) zoomAnim = null;
+    return true;
+  }
+
+  function zoomHome(now) {
+    zoomSteps = 0;
+    if (zoom !== 1 || off[0] || off[1]) zoomAnim = { t0: now, dur: 700, z0: zoom, z1: 1, off0: [...off], anchor: null };
+  }
+
+  // Click effects that the shader draws: highlighted period and ripple.
+  let hiP = 0;
+  let hiA = 0;
+  let glowAnim = null;
+  let ripple = null;
+
+  function updateGlow(now) {
+    if (glowAnim === null) return false;
+    const t = Math.min(1, (now - glowAnim) / 1400);
+    hiA = 0.9 - 0.5 * t * t * (3 - 2 * t);
+    if (t >= 1) glowAnim = null;
+    return true;
+  }
+
+  function rippleUniform(now) {
+    if (!ripple) return [0, 0, 0, 0];
+    const t = (now - ripple.t0) / 1000;
+    if (t > 1.8) { ripple = null; return [0, 0, 0, 0]; }
+    return [ripple.w[0], ripple.w[1], (0.15 + 3.2 * t) / zoom, (1 - t / 1.8) ** 2];
+  }
+
+  // The same map in double precision, for orbits traced on the overlay.
+  function insidePolygon(x, y, V, m) {
+    for (let i = 0; i < m; i++) {
+      const j = (i + 1) % m;
+      if ((V[2 * j] - V[2 * i]) * (y - V[2 * i + 1]) - (V[2 * j + 1] - V[2 * i + 1]) * (x - V[2 * i]) < 0) return false;
+    }
+    return true;
+  }
+
+  function orbitOf(w, maxSteps, V, m) {
+    const pts = [w];
+    let x = w[0];
+    let y = w[1];
+    for (let k = 1; k <= maxSteps; k++) {
+      let vi = 0;
+      let ePrev = (V[2 * m - 2] - x) * (V[1] - y) - (V[2 * m - 1] - y) * (V[0] - x);
+      for (let i = 0; i < m; i++) {
+        const j = (i + 1) % m;
+        const e = (V[2 * i] - x) * (V[2 * j + 1] - y) - (V[2 * i + 1] - y) * (V[2 * j] - x);
+        if (ePrev < 0 && e >= 0) vi = i;
+        ePrev = e;
+      }
+      x = 2 * V[2 * vi] - x;
+      y = 2 * V[2 * vi + 1] - y;
+      if ((x - w[0]) ** 2 + (y - w[1]) ** 2 < 1e-18) return { pts, period: k };
+      pts.push([x, y]);
+    }
+    return { pts, period: 0 };
+  }
+
+  // Overlay: orbit lines, dots and a short label, drawn in CSS pixels.
+  let trace = null;
+  let label = null;
+  const ovDpr = Math.min(window.devicePixelRatio || 1, 2);
+
+  function sizeOverlay() {
+    overlay.width = Math.round(window.innerWidth * ovDpr);
+    overlay.height = Math.round(window.innerHeight * ovDpr);
+    ctx.setTransform(ovDpr, 0, 0, ovDpr, 0, 0);
+  }
+
+  function dot(p, radius, style) {
+    ctx.fillStyle = style;
+    ctx.beginPath();
+    ctx.arc(p[0], p[1], radius, 0, 2 * Math.PI);
+    ctx.fill();
+  }
+
+  function drawOverlay(now) {
+    ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
+    let animating = false;
+    if (trace) {
+      const pts = trace.pts.map(toScreen);
+      const segs = pts.length - 1;
+      if (trace.lines) {
+        const t = (now - trace.t0) / 1000;
+        const shown = Math.min(segs, Math.floor(3 + 8 * t + 24 * t * t));
+        animating = shown < segs;
+        ctx.lineWidth = 1;
+        for (let k = 0; k < shown; k++) {
+          const alpha = animating ? Math.max(0.12, 0.85 * Math.exp(-(shown - k) / 12)) : 0.32;
+          ctx.strokeStyle = `rgba(95, 212, 230, ${alpha})`;
+          ctx.beginPath();
+          ctx.moveTo(pts[k][0], pts[k][1]);
+          ctx.lineTo(pts[k + 1][0], pts[k + 1][1]);
+          ctx.stroke();
+        }
+        for (let k = 0; k <= shown; k++) dot(pts[k], 1.6, 'rgba(238, 242, 246, 0.75)');
+        if (animating) dot(pts[shown], 3, '#5fd4e6');
+      } else {
+        for (const p of pts) dot(p, 2, 'rgba(238, 242, 246, 0.85)');
+      }
+      ctx.strokeStyle = 'rgba(238, 242, 246, 0.9)';
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      ctx.arc(pts[0][0], pts[0][1], 5, 0, 2 * Math.PI);
+      ctx.stroke();
+    }
+    if (label) {
+      let alpha = 1;
+      if (label.fade) {
+        const t = (now - label.t0) / 1000;
+        alpha = t < 1.2 ? 1 : Math.max(0, 1 - (t - 1.2) / 0.6);
+        if (alpha > 0) animating = true;
+      }
+      if (alpha > 0) {
+        const [x, y] = toScreen(label.w);
+        ctx.font = '12px "IBM Plex Mono", ui-monospace, monospace';
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.9)';
+        ctx.shadowBlur = 6;
+        ctx.fillStyle = `rgba(238, 242, 246, ${alpha})`;
+        // Flip the label to the left of the point when it would run off screen.
+        const width = ctx.measureText(label.text).width;
+        const lx = x + 10 + width > window.innerWidth - 8 ? x - 10 - width : x + 10;
+        ctx.fillText(label.text, Math.max(8, lx), Math.max(16, y - 10));
+        ctx.shadowBlur = 0;
+      } else {
+        label = null;
+      }
+    }
+    return animating;
+  }
+
+  function clearExplore() {
+    trace = null;
+    label = null;
+    if (hiP) { hiP = 0; glowAnim = null; needHigh = true; }
   }
 
   // While moving, render at one of a few fixed scales (changing the canvas size
@@ -456,8 +728,11 @@
   // Orbit steps per pixel: fewer while moving, where fine detail can't be seen.
   const ITER_MOVING = 140;
   const ITER_REST = 320;
+  let rip = [0, 0, 0, 0];
 
   function draw(scale, iters) {
+    const P = program(curN);
+    gl.useProgram(P.prog);
     const w = Math.max(1, Math.round(window.innerWidth * scale));
     const h = Math.max(1, Math.round(window.innerHeight * scale));
     if (canvas.width !== w || canvas.height !== h) {
@@ -465,12 +740,16 @@
       canvas.height = h;
     }
     gl.viewport(0, 0, w, h);
-    setVertices();
     // The polygon scrolls away with the header, then stays just above the viewport.
-    gl.uniform2f(loc.C, w / 2, h * (0.6 + lift()));
-    gl.uniform1f(loc.S, Math.min(w, h) * 0.10);
-    gl.uniform2fv(loc.V, verts);
-    gl.uniform1i(loc.I, iters);
+    gl.uniform2f(P.C, w / 2, h * (0.6 + lift()));
+    gl.uniform1f(P.S, Math.min(w, h) * 0.10);
+    gl.uniform1f(P.Z, zoom);
+    gl.uniform2f(P.O, off[0], off[1]);
+    gl.uniform2fv(P.V, new Float32Array(cur));
+    gl.uniform1i(P.I, iters);
+    gl.uniform1i(P.HP, hiP);
+    gl.uniform1f(P.HA, hiA);
+    gl.uniform4f(P.R, rip[0], rip[1], rip[2], rip[3]);
     gl.drawArrays(gl.TRIANGLES, 0, 3);
   }
 
@@ -478,6 +757,7 @@
   let raf = 0;
   let lastT = null;
   let lastInput = 0;
+  let needHigh = false;
 
   function request() {
     if (!raf) raf = requestAnimationFrame(frame);
@@ -490,23 +770,162 @@
     const dt = lastT === null ? 1 / 60 : Math.min(0.05, (now - lastT) / 1000);
     lastT = now;
 
-    const n = Math.ceil(dt * 240);
-    for (let k = 0; k < n; k++) step(dt / n);
+    const steps = Math.ceil(dt * 240);
+    for (let k = 0; k < steps; k++) step(dt / steps);
 
-    const active = energy() > 2e-6 || now - lastInput < 120;
+    const morphing = updatePolygon(now);
+    const zooming = updateZoom(now);
+    const glowing = updateGlow(now);
+    const rippling = ripple !== null;
+    rip = rippleUniform(now);
+
+    const active = energy() > 2e-6 || now - lastInput < 120 || morphing || zooming || glowing || rippling;
     if (active) {
       adapt(dt);
       draw(LEVELS[level] ?? HIGH, ITER_MOVING);
-      request();
-    } else {
+      needHigh = true;
+    } else if (needHigh) {
       draw(HIGH, ITER_REST);
-      lastT = null;
+      needHigh = false;
+    }
+    const overlayMoving = drawOverlay(now);
+    if (active || overlayMoving) request();
+    else lastT = null;
+  }
+
+  // Click modes.
+  function traceOrbit(w, now) {
+    if (insidePolygon(w[0], w[1], cur, curN)) {
+      label = { text: 'inside the polygon', w, t0: now, fade: true };
+      return;
+    }
+    const o = orbitOf(w, 2000, cur, curN);
+    const pts = o.pts.slice(0, 800);
+    if (o.period && o.period <= 800) pts.push(w);
+    trace = { pts, lines: true, t0: now };
+    label = { text: o.period ? `period ${o.period}` : 'no return within 2000 steps', w, t0: now, fade: false };
+  }
+
+  function lightTiles(w, now) {
+    if (insidePolygon(w[0], w[1], cur, curN)) {
+      label = { text: 'inside the polygon', w, t0: now, fade: true };
+      return;
+    }
+    const o = orbitOf(w, ITER_REST, cur, curN);
+    trace = { pts: o.pts, lines: false, t0: now };
+    if (o.period) {
+      hiP = o.period;
+      glowAnim = now;
+      label = { text: `period ${o.period}: every period-${o.period} tile lit`, w, t0: now, fade: false };
+    } else {
+      label = { text: `no return within ${ITER_REST} steps`, w, t0: now, fade: false };
     }
   }
 
+  function zoomAt(e, w, now) {
+    if (zoomSteps >= 6) {
+      zoomHome(now);
+      label = { text: 'zoom ×1', w: toWorld(e.clientX, e.clientY), t0: now, fade: true };
+      return;
+    }
+    const [cx, cy] = centre();
+    zoomSteps++;
+    zoomAnim = { t0: now, dur: 700, z0: zoom, z1: 3 ** zoomSteps, anchor: { w, sv: [e.clientX - cx, cy - e.clientY] } };
+    label = { text: `zoom ×${3 ** zoomSteps}${zoomSteps === 6 ? ' (click again to reset)' : ''}`, w, t0: now, fade: true };
+  }
+
+  const mod2pi = (a) => ((a % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
+
+  function addSide(w, now) {
+    if (n >= MAXV) return 'at most 8 sides';
+    const m = curN;
+    const V = cur;
+    const a = Math.atan2(w[1], w[0]);
+    let edge = 0;
+    for (let i = 0; i < m; i++) {
+      const j = (i + 1) % m;
+      const a0 = Math.atan2(V[2 * i + 1], V[2 * i]);
+      const a1 = Math.atan2(V[2 * j + 1], V[2 * j]);
+      if (mod2pi(a - a0) < mod2pi(a1 - a0)) { edge = i; break; }
+    }
+    // The new vertex starts where the ray towards the click meets that edge, so
+    // the polygon is unchanged at the start of the morph.
+    const j = (edge + 1) % m;
+    const A = [V[2 * edge], V[2 * edge + 1]];
+    const B = [V[2 * j], V[2 * j + 1]];
+    const dir = [Math.cos(a), Math.sin(a)];
+    const t = -(dir[0] * A[1] - dir[1] * A[0]) / (dir[0] * (B[1] - A[1]) - dir[1] * (B[0] - A[0]));
+    const from = new Float64Array(2 * (m + 1));
+    for (let i = 0, k = 0; i <= m; i++) {
+      if (i === edge + 1) {
+        from[2 * i] = A[0] + t * (B[0] - A[0]);
+        from[2 * i + 1] = A[1] + t * (B[1] - A[1]);
+      } else {
+        from[2 * i] = V[2 * k];
+        from[2 * i + 1] = V[2 * k + 1];
+        k++;
+      }
+    }
+    n = m + 1;
+    settlePhysics();
+    morph = { t0: now, dur: 800, count: n, from, to: physicsVerts };
+    return `${n} sides`;
+  }
+
+  function removeSide(w, now) {
+    if (n <= MINV) return 'at least 3 sides';
+    const m = curN;
+    const V = cur;
+    let j = 0;
+    for (let i = 1; i < m; i++) {
+      if (Math.hypot(V[2 * i] - w[0], V[2 * i + 1] - w[1]) < Math.hypot(V[2 * j] - w[0], V[2 * j + 1] - w[1])) j = i;
+    }
+    const from = Float64Array.from(V);
+    n = m - 1;
+    settlePhysics();
+    // The removed vertex slides onto the new edge between its neighbours.
+    const to = () => {
+      const P = physicsVerts();
+      const out = new Float64Array(2 * m);
+      for (let i = 0; i < m; i++) {
+        if (i === j) {
+          const a = (j - 1 + n) % n;
+          const b = j % n;
+          out[2 * i] = (P[2 * a] + P[2 * b]) / 2;
+          out[2 * i + 1] = (P[2 * a + 1] + P[2 * b + 1]) / 2;
+        } else {
+          const src = i < j ? i : i - 1;
+          out[2 * i] = P[2 * src];
+          out[2 * i + 1] = P[2 * src + 1];
+        }
+      }
+      return out;
+    };
+    morph = { t0: now, dur: 800, count: m, from, to };
+    return `${n} sides`;
+  }
+
+  function changeSides(w, now) {
+    if (morph) return;
+    let text;
+    try {
+      text = insidePolygon(w[0], w[1], cur, curN) ? removeSide(w, now) : addSide(w, now);
+      program(n);
+      if (morph) program(morph.count);
+    } catch (err) {
+      console.warn(err);
+      return;
+    }
+    label = { text, w, t0: now, fade: true };
+  }
+
+  let mode = 1;
+
   window.addEventListener('resize', () => {
-    if (reduceMotion) { draw(HIGH, ITER_REST); return; }
+    sizeOverlay();
+    if (reduceMotion) { draw(HIGH, ITER_REST); drawOverlay(performance.now()); return; }
     lastInput = performance.now();
+    needHigh = true;
     request();
   });
 
@@ -517,33 +936,49 @@
       lastScrollY = window.scrollY;
       s = window.scrollY * SCROLL_GAIN;
       const kick = Math.max(-3, Math.min(3, delta * 0.012));
-      for (let i = 0; i < N; i++) v[i] += kick * SCROLL_KICK[i];
+      for (let i = 0; i < n; i++) v[i] += kick * SCROLL_KICK[i];
       rv += Math.max(-0.6, Math.min(0.6, delta * 0.0008));
+      clearExplore();
       lastInput = performance.now();
       request();
     }, { passive: true });
 
-    // A click pushes the nearest vertex away from the pointer along the circle;
-    // the coupling carries the disturbance round to the others.
-    window.addEventListener('pointerdown', (e) => {
-      if (e.target.closest && e.target.closest('.friction')) return;
-      const cx = window.innerWidth / 2;
-      const cy = window.innerHeight * (0.4 - lift());
-      const pa = Math.atan2(cy - e.clientY, e.clientX - cx);
-      let nearest = 0;
-      let gap = Infinity;
-      for (let i = 0; i < N; i++) {
-        const diff = Math.atan2(Math.sin(pa - vertexAngle(i)), Math.cos(pa - vertexAngle(i)));
-        if (Math.abs(diff) < Math.abs(gap)) { gap = diff; nearest = i; }
-      }
-      const push = -Math.sign(gap || 1) * (4.5 + Math.random());
-      v[nearest] += push;
-      v[(nearest + 1) % N] += push * 0.35;
-      v[(nearest + N - 1) % N] += push * 0.35;
-      rv += push * 0.12;
-      lastInput = performance.now();
+    // Clicks (and taps, which unlike pointerdown don't fire when a swipe scrolls).
+    window.addEventListener('click', (e) => {
+      if (e.target.closest && e.target.closest('a, button, input, label, .friction, .modes')) return;
+      const now = performance.now();
+      const w = toWorld(e.clientX, e.clientY);
+      clearExplore();
+      if (mode === 1) traceOrbit(w, now);
+      else if (mode === 2) lightTiles(w, now);
+      else if (mode === 3) zoomAt(e, w, now);
+      else if (mode === 4) changeSides(w, now);
+      else ripple = { w, t0: now };
       request();
     });
+
+    const modes = document.querySelector('.modes');
+    const buttons = modes.querySelectorAll('button[data-mode]');
+    const setMode = (m) => {
+      if (m === mode) return;
+      mode = m;
+      buttons.forEach((b) => b.setAttribute('aria-pressed', String(+b.dataset.mode === m)));
+      clearExplore();
+      ripple = null;
+      if (m !== 3) zoomHome(performance.now());
+      try { localStorage.setItem('click-mode', String(m)); } catch (err) {}
+      request();
+    };
+    buttons.forEach((b) => b.addEventListener('click', () => setMode(+b.dataset.mode)));
+    window.addEventListener('keydown', (e) => {
+      if (e.metaKey || e.ctrlKey || e.altKey || (e.target.closest && e.target.closest('input, textarea'))) return;
+      if (/^[1-5]$/.test(e.key)) setMode(+e.key);
+    });
+    try {
+      const saved = +localStorage.getItem('click-mode');
+      if (saved >= 1 && saved <= 5) setMode(saved);
+    } catch (err) {}
+    modes.hidden = false;
 
     // Friction slider: logarithmic, 3x the base damping (ζ ≈ 1.29) at 75, halving every 25.
     const panel = document.querySelector('.friction');
@@ -564,12 +999,14 @@
     slider.addEventListener('change', () => {
       v[0] += 3.5;
       v[2] -= 2;
+      clearExplore();
       lastInput = performance.now();
       request();
     });
     panel.hidden = false;
   }
 
+  sizeOverlay();
   draw(HIGH, ITER_REST);
 })();
 </script>
