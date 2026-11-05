@@ -371,6 +371,7 @@
   #define MAXI 320
   uniform vec2 uC;
   uniform float uS;
+  uniform float uPx;
   uniform vec2 uV[N];
   uniform int uIter;
   out vec4 frag;
@@ -431,7 +432,9 @@
     }
 
     float p = float(period);
-    float boundary = period > 0 ? 1.0 - smoothstep(0.35, 1.25, sqrt(bd2) * uS) : 0.0;
+    // Line widths are set in CSS pixels (uPx canvas pixels each), never under one canvas pixel.
+    float lw = max(uPx * 0.85, 1.0);
+    float boundary = period > 0 ? 1.0 - smoothstep(0.35 * lw, 1.25 * lw, sqrt(bd2) * uS) : 0.0;
 
     vec3 base = vec3(0.027, 0.031, 0.047);
     vec3 col;
@@ -447,7 +450,7 @@
       col = base + vec3(0.30, 0.80, 0.95) * exp(-sqrt(md2) * 10.0) * 0.6;
     }
     if (!inside) col += vec3(0.20, 0.62, 0.72) * 0.30 * boundary;
-    col = mix(col, vec3(0.45, 0.92, 1.0), smoothstep(1.6 / uS, 0.0, sqrt(edgeD2)) * 0.85);
+    col = mix(col, vec3(0.45, 0.92, 1.0), smoothstep(1.6 * max(uPx, 1.0) / uS, 0.0, sqrt(edgeD2)) * 0.85);
 
     float r = length(gl_FragCoord.xy - uC) / length(uC);
     col *= 1.0 - 0.4 * smoothstep(0.35, 1.15, r);
@@ -471,7 +474,7 @@
     gl.linkProgram(prog);
     if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(prog));
     const u = (name) => gl.getUniformLocation(prog, name);
-    const p = { prog, C: u('uC'), S: u('uS'), V: u('uV[0]'), I: u('uIter') };
+    const p = { prog, C: u('uC'), S: u('uS'), X: u('uPx'), V: u('uV[0]'), I: u('uIter') };
     programs.set(N, p);
     return p;
   }
@@ -713,11 +716,13 @@
     label = null;
   }
 
-  // While moving, render at one of a few fixed scales (changing the canvas size
-  // reallocates its buffer, so only switch level when frame times say so).
-  const HIGH = Math.min(window.devicePixelRatio || 1, 1.5);
-  const LEVELS = [0.3, 0.42, 0.6, 0.85].filter((x) => x < HIGH);
-  let level = Math.min(1, LEVELS.length - 1);
+  // The canvas always matches the screen's real pixels (up to 3 per CSS pixel).
+  // Moving frames are drawn small into an offscreen texture and stretched up; once
+  // things settle, the full-resolution image is drawn in horizontal strips over a
+  // few frames, top first, so high-density screens stay sharp without one long stall.
+  const LEVELS = [0.3, 0.42, 0.6, 0.85];
+  const STRIP_PIXELS = 1.2e6;
+  let level = 1;
   let frameAvg = 1 / 60;
   let fastFrames = 0;
 
@@ -738,36 +743,141 @@
   const ITER_MOVING = 140;
   const ITER_REST = 320;
 
-  function draw(scale, iters) {
-    const P = program(curN);
-    gl.useProgram(P.prog);
-    const w = Math.max(1, Math.round(window.innerWidth * scale));
-    const h = Math.max(1, Math.round(window.innerHeight * scale));
+  const BLIT = `#version 300 es
+  precision highp float;
+  uniform sampler2D uLow;
+  uniform sampler2D uHigh;
+  uniform vec2 uSize;
+  uniform float uSplit;
+  out vec4 frag;
+  void main() {
+    vec2 uv = gl_FragCoord.xy / uSize;
+    // Rows at or above uSplit already have their full-resolution strip.
+    frag = gl_FragCoord.y >= uSplit ? texture(uHigh, uv) : texture(uLow, uv);
+  }`;
+  let blit;
+  try {
+    const prog = gl.createProgram();
+    gl.attachShader(prog, compile(gl.VERTEX_SHADER, VERT));
+    gl.attachShader(prog, compile(gl.FRAGMENT_SHADER, BLIT));
+    gl.linkProgram(prog);
+    if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(prog));
+    const u = (name) => gl.getUniformLocation(prog, name);
+    blit = { prog, L: u('uLow'), H: u('uHigh'), Z: u('uSize'), P: u('uSplit') };
+  } catch (err) {
+    console.warn(err);
+    canvas.classList.add('static');
+    return;
+  }
+
+  function makeTarget() {
+    const tex = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, tex);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    return { tex, fbo: gl.createFramebuffer(), w: 0, h: 0 };
+  }
+
+  function sizeTarget(t, w, h) {
+    if (t.w === w && t.h === h) return;
+    gl.bindTexture(gl.TEXTURE_2D, t.tex);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, w, h, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, t.fbo);
+    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, t.tex, 0);
+    t.w = w;
+    t.h = h;
+  }
+
+  const low = makeTarget();
+  const high = makeTarget();
+
+  function sizeCanvas() {
+    const density = Math.min(window.devicePixelRatio || 1, 3);
+    const w = Math.max(1, Math.round(window.innerWidth * density));
+    const h = Math.max(1, Math.round(window.innerHeight * density));
     if (canvas.width !== w || canvas.height !== h) {
       canvas.width = w;
       canvas.height = h;
     }
-    gl.viewport(0, 0, w, h);
+    sizeTarget(high, w, h);
+  }
+
+  function renderFractal(t, iters, rows) {
+    const P = program(curN);
+    gl.useProgram(P.prog);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, t.fbo);
+    gl.viewport(0, 0, t.w, t.h);
+    if (rows) {
+      gl.enable(gl.SCISSOR_TEST);
+      gl.scissor(0, rows[0], t.w, rows[1] - rows[0]);
+    }
     // The polygon scrolls away with the header, then stays just above the viewport.
-    gl.uniform2f(P.C, w / 2, h * (0.6 + lift()));
-    gl.uniform1f(P.S, Math.min(w, h) * 0.10);
+    gl.uniform2f(P.C, t.w / 2, t.h * (0.6 + lift()));
+    gl.uniform1f(P.S, Math.min(t.w, t.h) * 0.10);
+    gl.uniform1f(P.X, t.w / window.innerWidth);
     gl.uniform2fv(P.V, new Float32Array(cur));
     gl.uniform1i(P.I, iters);
     gl.drawArrays(gl.TRIANGLES, 0, 3);
+    gl.disable(gl.SCISSOR_TEST);
+  }
+
+  function present(split) {
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    gl.viewport(0, 0, canvas.width, canvas.height);
+    gl.useProgram(blit.prog);
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, low.tex);
+    gl.uniform1i(blit.L, 0);
+    gl.activeTexture(gl.TEXTURE1);
+    gl.bindTexture(gl.TEXTURE_2D, high.tex);
+    gl.uniform1i(blit.H, 1);
+    gl.uniform2f(blit.Z, canvas.width, canvas.height);
+    gl.uniform1f(blit.P, split);
+    gl.drawArrays(gl.TRIANGLES, 0, 3);
+  }
+
+  // Low-resolution frame, stretched to the canvas; the sharp image starts again.
+  function drawMoving() {
+    sizeCanvas();
+    const scale = LEVELS[level];
+    sizeTarget(low, Math.max(1, Math.round(window.innerWidth * scale)), Math.max(1, Math.round(window.innerHeight * scale)));
+    renderFractal(low, ITER_MOVING);
+    present(canvas.height + 1);
+    sharpPending = true;
+    stripNext = 0;
+  }
+
+  // One more strip of the full-resolution image.
+  let sharpPending = false;
+  let stripNext = 0;
+  let strips = 1;
+
+  function sharpStep() {
+    if (stripNext === 0) strips = Math.max(1, Math.ceil(canvas.width * canvas.height / STRIP_PIXELS));
+    const H = canvas.height;
+    const rowsPer = Math.ceil(H / strips);
+    const top = Math.max(0, H - stripNext * rowsPer);
+    const bottom = Math.max(0, top - rowsPer);
+    renderFractal(high, ITER_REST, [bottom, top]);
+    stripNext++;
+    const done = stripNext >= strips || bottom === 0;
+    present(done ? -1 : bottom);
+    if (done) sharpPending = false;
   }
 
   const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   let raf = 0;
   let lastT = null;
   let lastInput = 0;
-  let needHigh = false;
 
   function request() {
     if (!raf) raf = requestAnimationFrame(frame);
   }
 
-  // Draws at low resolution while anything is changing, then once at full
-  // resolution and stops: with no input the background does not move.
+  // Draws at low resolution while anything is changing, then sharpens strip by
+  // strip and stops: with no input the background does not move.
   function frame(now) {
     raf = 0;
     const dt = lastT === null ? 1 / 60 : Math.min(0.05, (now - lastT) / 1000);
@@ -780,14 +890,12 @@
     const active = energy() > 2e-6 || now - lastInput < 120 || morphing;
     if (active) {
       adapt(dt);
-      draw(LEVELS[level] ?? HIGH, ITER_MOVING);
-      needHigh = true;
-    } else if (needHigh) {
-      draw(HIGH, ITER_REST);
-      needHigh = false;
+      drawMoving();
+    } else if (sharpPending) {
+      sharpStep();
     }
     const overlayMoving = drawOverlay(now);
-    if (active || overlayMoving) request();
+    if (active || overlayMoving || sharpPending) request();
     else lastT = null;
   }
 
@@ -864,9 +972,9 @@
 
   window.addEventListener('resize', () => {
     sizeOverlay();
-    if (reduceMotion) { draw(HIGH, ITER_REST); drawOverlay(performance.now()); return; }
-    lastInput = performance.now();
-    needHigh = true;
+    if (!reduceMotion) lastInput = performance.now();
+    drawMoving();
+    drawOverlay(performance.now());
     request();
   });
 
@@ -957,21 +1065,18 @@
       cancelAnimationFrame(raf);
       raf = 0;
       lastT = null;
-    } else if (!document.hidden && needHigh) {
+    } else if (!document.hidden && sharpPending) {
       request();
     }
   });
 
-  // A quick low-resolution first frame, then the full-resolution one on the next frame,
+  // A quick low-resolution first frame, then the sharp image strip by strip,
   // so a slow GPU doesn't hold up the first paint.
   sizeOverlay();
-  if (reduceMotion) {
-    draw(HIGH, ITER_REST);
-  } else {
-    draw(LEVELS[0] ?? HIGH, ITER_MOVING);
-    needHigh = true;
-    request();
-  }
+  level = 0;
+  drawMoving();
+  level = 1;
+  request();
 })();
 </script>
 </body>
