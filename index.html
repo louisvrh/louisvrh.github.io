@@ -94,10 +94,10 @@
     margin: 0 auto 10vh;
     padding: 0 16px;
   }
+  /* No backdrop-filter here: the browser would re-blur this near-full-screen area
+     on every animated frame of the background, and at this opacity it barely shows. */
   .panel {
-    background: rgba(8, 10, 15, 0.9);
-    backdrop-filter: blur(14px);
-    -webkit-backdrop-filter: blur(14px);
+    background: rgba(8, 10, 15, 0.92);
     border-top: 2px solid var(--accent);
     border-radius: 2px;
     padding: clamp(20px, 4vw, 36px);
@@ -387,6 +387,7 @@
   uniform float uPx;
   uniform vec2 uV[N];
   uniform int uIter;
+  uniform vec2 uJit; // sub-pixel offset of this sample, for supersampling at rest
   out vec4 frag;
 
   float cr(vec2 a, vec2 b) { return a.x * b.y - a.y * b.x; }
@@ -398,7 +399,7 @@
   }
 
   void main() {
-    vec2 x0 = (gl_FragCoord.xy - uC) / uS;
+    vec2 x0 = (gl_FragCoord.xy + uJit - uC) / uS;
 
     // cr(V[i] - x, V[i+1] - x) = C[i] + cr(E[i], x): which side of edge i x is on.
     vec2 V[N], E[N];
@@ -475,18 +476,44 @@
     return sh;
   }
 
+  // One program per vertex count. startProgram only queues the compile; the
+  // first status query waits for it. With KHR_parallel_shader_compile the
+  // browser compiles on another thread meanwhile, so the variants for the other
+  // vertex counts are started once the page is idle and a click doesn't stall.
   const programs = new Map();
-  function program(N) {
-    if (programs.has(N)) return programs.get(N);
+  let parallel = gl.getExtension('KHR_parallel_shader_compile');
+
+  function startProgram(N) {
     const prog = gl.createProgram();
-    gl.attachShader(prog, compile(gl.VERTEX_SHADER, VERT));
-    gl.attachShader(prog, compile(gl.FRAGMENT_SHADER, fragSource(N)));
+    const shaders = [[gl.VERTEX_SHADER, VERT], [gl.FRAGMENT_SHADER, fragSource(N)]].map(([type, src]) => {
+      const sh = gl.createShader(type);
+      gl.shaderSource(sh, src);
+      gl.compileShader(sh);
+      gl.attachShader(prog, sh);
+      return sh;
+    });
     gl.linkProgram(prog);
-    if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(prog));
-    const u = (name) => gl.getUniformLocation(prog, name);
-    const p = { prog, C: u('uC'), S: u('uS'), X: u('uPx'), V: u('uV[0]'), I: u('uIter') };
+    const p = { prog, shaders, ready: false };
     programs.set(N, p);
     return p;
+  }
+
+  function program(N) {
+    const p = programs.get(N) || startProgram(N);
+    if (p.ready) return p;
+    if (!gl.getProgramParameter(p.prog, gl.LINK_STATUS)) {
+      const log = p.shaders.map((sh) => gl.getShaderInfoLog(sh)).join('\n') + gl.getProgramInfoLog(p.prog);
+      programs.delete(N);
+      throw new Error(log);
+    }
+    const u = (name) => gl.getUniformLocation(p.prog, name);
+    Object.assign(p, { ready: true, C: u('uC'), S: u('uS'), X: u('uPx'), V: u('uV[0]'), I: u('uIter'), J: u('uJit') });
+    return p;
+  }
+
+  function warmPrograms() {
+    if (!parallel) return;
+    for (let N = MIN_SIDES; N <= MAX_SIDES; N++) if (!programs.has(N)) startProgram(N);
   }
 
   // Polygon inscribed in the unit circle. Each vertex sits at its regular
@@ -824,7 +851,13 @@
     col = mix(col, vec3(0.027, 0.031, 0.047) * 0.55 * vig, clamp(sd * uS + 0.5, 0.0, 1.0));
     // Line width set in CSS pixels (uPx canvas pixels each), never under one canvas pixel.
     col = mix(col, vec3(0.45, 0.92, 1.0) * vig, smoothstep(1.6 * max(uPx, 1.0) / uS, 0.0, sqrt(ed2)) * 0.85);
-    frag = vec4(col, 1.0);
+    // The colours are dark and the vignette spreads a few 8-bit levels across the
+    // whole screen, which shows as bands. Triangular dither of +-1 level (the sum
+    // of two interleaved-gradient-noise values, Jimenez 2014) breaks them up.
+    const vec3 IGN = vec3(0.06711056, 0.00583715, 52.9829189);
+    float n1 = fract(IGN.z * fract(dot(fc, IGN.xy)));
+    float n2 = fract(IGN.z * fract(dot(fc + vec2(47.0, 17.0), IGN.xy)));
+    frag = vec4(col + (n1 + n2 - 1.0) / 255.0, 1.0);
   }`;
 
   function makeTarget() {
@@ -837,12 +870,27 @@
     return { tex, fbo: gl.createFramebuffer(), w: 0, h: 0 };
   }
 
+  // Targets are half-float where the browser can render to it (nearly all
+  // WebGL2 devices, iOS included), so supersamples average without rounding to
+  // 8 bits each time and the dither sees the smooth gradient; otherwise 8-bit.
+  let halfFloat = false;
+
   function sizeTarget(t, w, h) {
     if (t.w === w && t.h === h) return;
     gl.bindTexture(gl.TEXTURE_2D, t.tex);
-    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, w, h, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
     gl.bindFramebuffer(gl.FRAMEBUFFER, t.fbo);
-    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, t.tex, 0);
+    if (halfFloat) {
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA16F, w, h, 0, gl.RGBA, gl.HALF_FLOAT, null);
+      gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, t.tex, 0);
+      if (gl.checkFramebufferStatus(gl.FRAMEBUFFER) !== gl.FRAMEBUFFER_COMPLETE) {
+        halfFloat = false;
+        if (t !== low && low.w) { const lw = low.w; low.w = 0; sizeTarget(low, lw, low.h); }
+      }
+    }
+    if (!halfFloat) {
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, w, h, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+      gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, t.tex, 0);
+    }
     t.w = w;
     t.h = h;
   }
@@ -855,10 +903,13 @@
 
   function initGL(restoring) {
     if (restoring) {
+      parallel = gl.getExtension('KHR_parallel_shader_compile');
+      timer = gl.getExtension('EXT_disjoint_timer_query_webgl2');
       programs.clear();
       gl.bindVertexArray(gl.createVertexArray());
       program(curN);
     }
+    halfFloat = !!gl.getExtension('EXT_color_buffer_float');
     const prog = gl.createProgram();
     gl.attachShader(prog, compile(gl.VERTEX_SHADER, VERT));
     gl.attachShader(prog, compile(gl.FRAGMENT_SHADER, PRESENT));
@@ -881,7 +932,7 @@
 
   // GPU timing, where the browser offers it (mostly desktop Chrome): measures how
   // many pixels a frame can afford directly. Elsewhere the frame rate decides.
-  const timer = gl.getExtension('EXT_disjoint_timer_query_webgl2');
+  let timer = gl.getExtension('EXT_disjoint_timer_query_webgl2');
   const queries = [];
   let moveRate = 0; // pixels per millisecond at ITER_MOVING
   let restRate = 0; // pixels per millisecond at ITER_REST
@@ -1011,7 +1062,9 @@
     request();
   }
 
-  function renderFractal(t, w, h, k, iters, rows) {
+  // jit is a sub-pixel offset; weight < 1 blends the result into what the target
+  // already holds (a running average of samples).
+  function renderFractal(t, w, h, k, iters, rows, jit, weight) {
     const P = program(curN);
     gl.useProgram(P.prog);
     gl.bindFramebuffer(gl.FRAMEBUFFER, t.fbo);
@@ -1027,7 +1080,14 @@
     gl.uniform1f(P.X, k * devW / cssW);
     gl.uniform2fv(P.V, new Float32Array(cur));
     gl.uniform1i(P.I, iters);
+    gl.uniform2f(P.J, jit ? jit[0] : 0, jit ? jit[1] : 0);
+    if (weight < 1) {
+      gl.enable(gl.BLEND);
+      gl.blendColor(0, 0, 0, weight);
+      gl.blendFunc(gl.CONSTANT_ALPHA, gl.ONE_MINUS_CONSTANT_ALPHA);
+    }
     gl.drawArrays(gl.TRIANGLES, 0, 3);
+    gl.disable(gl.BLEND);
     gl.disable(gl.SCISSOR_TEST);
   }
 
@@ -1065,38 +1125,55 @@
     present(devH + 1);
     sharpPending = true;
     highValid = false;
+    restSamples = 0;
     stripNext = 0;
   }
 
   // One more strip of the full-resolution image, sized to take about 12 ms. Strips
   // sweep down the screen; rows not yet redone show the previous full-resolution
   // image if there is one (highValid), else the last moving frame. While the
-  // polygon is still settling, sweeps repeat; the one started at rest is the last.
+  // polygon is still settling, sweeps repeat. Once it is at rest, further sweeps
+  // add samples offset within each pixel and average them (supersampling), which
+  // smooths the edges of the finest tiles; then everything stops.
   let sharpPending = false;
   let highValid = false;
   let stripNext = 0;
   let strips = 1;
-  let finalSweep = false;
+  let sweepSample = 0;  // sample index of the sweep in progress (0 replaces the image)
+  let restSamples = 0;  // samples in the image so far, counting only sweeps begun at rest
+  let warmed = false;
+  const samplesWanted = () => (halfFloat ? 8 : 4);
+
+  // Sample offsets from the R2 sequence (Roberts 2018), centred on the pixel.
+  const R2 = [0.7548776662, 0.5698402910];
+  const jitter = (i) => (i === 0 ? [0, 0] : [((0.5 + i * R2[0]) % 1) - 0.5, ((0.5 + i * R2[1]) % 1) - 0.5]);
 
   function sharpStep(resting) {
     if (stripNext === 0) {
       const perStrip = restRate ? restRate * 12 : Math.max(6e5, budgetPx * 0.6);
       strips = Math.max(1, Math.ceil(devW * devH / Math.min(4e6, Math.max(2e5, perStrip))));
-      finalSweep = resting;
+      if (!resting) restSamples = 0;
+      sweepSample = resting ? restSamples : -1;
     }
     const rowsPer = Math.ceil(devH / strips);
     const top = Math.max(0, devH - stripNext * rowsPer);
     const bottom = Math.max(0, top - rowsPer);
-    timed('rest', devW * (top - bottom), () => renderFractal(high, devW, devH, 1, ITER_REST, [bottom, top]));
+    const i = Math.max(0, sweepSample);
+    timed('rest', devW * (top - bottom), () => renderFractal(high, devW, devH, 1, ITER_REST, [bottom, top], jitter(i), 1 / (i + 1)));
     stripNext++;
     const done = stripNext >= strips || bottom === 0;
     present(done || highValid ? -1 : bottom);
     if (done) {
       highValid = true;
       stripNext = 0;
-      if (finalSweep) {
+      if (sweepSample >= 0) restSamples = sweepSample + 1;
+      if (restSamples >= samplesWanted()) {
         sharpPending = false;
         saveBudget();
+        if (!warmed) {
+          warmed = true;
+          warmPrograms();
+        }
       }
     }
   }
