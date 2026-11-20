@@ -49,7 +49,19 @@
     pointer-events: none;
     display: block;
   }
-  #bg.static { background: var(--bg) url('background.jpg') center 40% / cover no-repeat; }
+  /* Still image for when WebGL2 isn't available or the GPU context is lost:
+     rendered at 2x (landscape) and 3x (portrait) so it stays sharp on dense screens,
+     in the smallest format the browser supports. */
+  #bg.static {
+    background: var(--bg) url('bg-landscape.jpg') center 40% / cover no-repeat;
+    background-image: image-set(url('bg-landscape.avif') type('image/avif'), url('bg-landscape.webp') type('image/webp'), url('bg-landscape.jpg') type('image/jpeg'));
+  }
+  @media (orientation: portrait) {
+    #bg.static {
+      background-image: url('bg-portrait.jpg');
+      background-image: image-set(url('bg-portrait.avif') type('image/avif'), url('bg-portrait.webp') type('image/webp'), url('bg-portrait.jpg') type('image/jpeg'));
+    }
+  }
   .mono { font-family: 'IBM Plex Mono', ui-monospace, monospace; }
 
   .hero {
@@ -398,12 +410,8 @@
     }
 
     bool inside = true;
-    float edgeD2 = 1e9;
     for (int i = 0; i < N; i++) {
       if (C[i] + cr(E[i], x0) < 0.0) inside = false;
-      vec2 q = x0 - V[i];
-      vec2 r = q - E[i] * clamp(dot(q, E[i]) / max(dot(E[i], E[i]), 1e-12), 0.0, 1.0);
-      edgeD2 = min(edgeD2, dot(r, r));
     }
 
     // Each step is a point reflection, an isometry, so the distance from x0 to
@@ -451,7 +459,8 @@
       col = base + vec3(0.30, 0.80, 0.95) * exp(-sqrt(md2) * 10.0) * 0.6;
     }
     if (!inside) col += vec3(0.20, 0.62, 0.72) * 0.30 * boundary;
-    col = mix(col, vec3(0.45, 0.92, 1.0), smoothstep(1.6 * max(uPx, 1.0) / uS, 0.0, sqrt(edgeD2)) * 0.85);
+    // The polygon's own outline and interior are drawn at full resolution in the
+    // present pass, so they stay crisp even while this pass runs at low resolution.
 
     float r = length(gl_FragCoord.xy - uC) / length(uC);
     col *= 1.0 - 0.4 * smoothstep(0.35, 1.15, r);
@@ -593,13 +602,22 @@
     return out;
   }
 
+  // The canvas's own box in CSS pixels. It is 100lvh tall, so it doesn't change
+  // when a phone's address bar slides in and out (window.innerHeight does), and
+  // all the geometry is measured from it so the drawing is never stretched.
+  let cssW = canvas.clientWidth || window.innerWidth;
+  let cssH = canvas.clientHeight || window.innerHeight;
+  // The same box in device pixels: the backing size of both canvases.
+  let devW = 1;
+  let devH = 1;
+
   function lift() {
-    return Math.min(window.scrollY / window.innerHeight, 0.55);
+    return Math.min(window.scrollY / cssH, 0.55);
   }
 
   // World point x appears at centre + x * scale (CSS px, y up).
-  const baseScale = () => Math.min(window.innerWidth, window.innerHeight) * 0.10;
-  const centre = () => [window.innerWidth / 2, window.innerHeight * (0.4 - lift())];
+  const baseScale = () => Math.min(cssW, cssH) * 0.10;
+  const centre = () => [cssW / 2, cssH * (0.4 - lift())];
 
   function toWorld(px, py) {
     const [cx, cy] = centre();
@@ -646,12 +664,14 @@
   // Overlay: orbit lines, dots and a short label, drawn in CSS pixels.
   let trace = null;
   let label = null;
-  const ovDpr = Math.min(window.devicePixelRatio || 1, 2);
-
+  // The overlay is cheap 2D drawing, so it always uses the screen's real pixels
+  // (the same backing size as the background canvas).
   function sizeOverlay() {
-    overlay.width = Math.round(window.innerWidth * ovDpr);
-    overlay.height = Math.round(window.innerHeight * ovDpr);
-    ctx.setTransform(ovDpr, 0, 0, ovDpr, 0, 0);
+    if (overlay.width !== devW || overlay.height !== devH) {
+      overlay.width = devW;
+      overlay.height = devH;
+    }
+    ctx.setTransform(devW / cssW, 0, 0, devH / cssH, 0, 0);
   }
 
   function dot(p, radius, style) {
@@ -662,7 +682,7 @@
   }
 
   function drawOverlay(now) {
-    ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
+    ctx.clearRect(0, 0, cssW, cssH);
     let animating = false;
     if (trace) {
       const pts = trace.pts.map(toScreen);
@@ -702,7 +722,7 @@
         ctx.fillStyle = `rgba(238, 242, 246, ${alpha})`;
         // Flip the label to the left of the point when it would run off screen.
         const width = ctx.measureText(label.text).width;
-        const lx = x + 10 + width > window.innerWidth - 8 ? x - 10 - width : x + 10;
+        const lx = x + 10 + width > cssW - 8 ? x - 10 - width : x + 10;
         ctx.fillText(label.text, Math.max(8, lx), Math.max(16, y - 10));
         ctx.shadowBlur = 0;
       } else {
@@ -717,59 +737,95 @@
     label = null;
   }
 
-  // The canvas always matches the screen's real pixels (up to 3 per CSS pixel).
-  // Moving frames are drawn small into an offscreen texture and stretched up; once
-  // things settle, the full-resolution image is drawn in horizontal strips over a
-  // few frames, top first, so high-density screens stay sharp without one long stall.
-  const LEVELS = [0.3, 0.42, 0.6, 0.85];
-  const STRIP_PIXELS = 1.2e6;
-  let level = 1;
-  let frameAvg = 1 / 60;
-  let fastFrames = 0;
-
-  function adapt(dt) {
-    frameAvg += (dt - frameAvg) * 0.2;
-    if (frameAvg > 0.026 && level > 0) {
-      level--;
-      frameAvg = 1 / 60;
-      fastFrames = 0;
-    } else if (frameAvg < 0.019 && level < LEVELS.length - 1) {
-      if (++fastFrames > 30) { level++; fastFrames = 0; }
-    } else {
-      fastFrames = 0;
-    }
-  }
-
-  // Orbit steps per pixel: fewer while moving, where fine detail can't be seen.
-  const ITER_MOVING = 140;
+  // Rendering. The canvas backing store always matches the screen's real pixels
+  // exactly (measured with a ResizeObserver, up to 3 per CSS pixel), so the
+  // browser never has to resample it. Moving frames are drawn into part of an
+  // offscreen texture at a resolution chosen to keep the frame rate up, then
+  // upscaled with a bicubic (Catmull-Rom) filter; the polygon's outline and
+  // interior are drawn on top at full resolution, so the most visible edges are
+  // always sharp. Once things settle, the full-resolution image is drawn in
+  // horizontal strips over a few frames, top first, so it never stalls.
+  const ITER_MOVING = 140; // orbit steps per pixel while moving, where fine detail can't be seen
   const ITER_REST = 320;
+  const MAX_DENSITY = 3;
 
-  const BLIT = `#version 300 es
+  const PRESENT = `#version 300 es
   precision highp float;
   uniform sampler2D uLow;
   uniform sampler2D uHigh;
-  uniform vec2 uSize;
-  uniform float uSplit;
+  uniform float uK;       // low-resolution texels per canvas pixel
+  uniform vec2 uLowSize;  // the part of uLow that holds the current frame, in texels
+  uniform float uSplit;   // rows at or above this already have their full-resolution strip
+  uniform vec2 uC;
+  uniform float uS;
+  uniform float uPx;
+  uniform vec2 uV[8];
+  uniform int uN;
   out vec4 frag;
-  void main() {
-    vec2 uv = gl_FragCoord.xy / uSize;
-    // Rows at or above uSplit already have their full-resolution strip.
-    frag = gl_FragCoord.y >= uSplit ? texture(uHigh, uv) : texture(uLow, uv);
-  }`;
-  let blit;
-  try {
-    const prog = gl.createProgram();
-    gl.attachShader(prog, compile(gl.VERTEX_SHADER, VERT));
-    gl.attachShader(prog, compile(gl.FRAGMENT_SHADER, BLIT));
-    gl.linkProgram(prog);
-    if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(prog));
-    const u = (name) => gl.getUniformLocation(prog, name);
-    blit = { prog, L: u('uLow'), H: u('uHigh'), Z: u('uSize'), P: u('uSplit') };
-  } catch (err) {
-    console.warn(err);
-    canvas.classList.add('static');
-    return;
+
+  float cr(vec2 a, vec2 b) { return a.x * b.y - a.y * b.x; }
+
+  // Catmull-Rom bicubic upscale in 5 bilinear taps (Jimenez, "Filmic SMAA"; the
+  // four corner taps carry almost no weight), clamped to the four nearest texels
+  // so the sharpening can't ring around bright lines.
+  vec3 upscale(vec2 p) {
+    vec2 ts = vec2(textureSize(uLow, 0));
+    vec2 lo = vec2(0.5);
+    vec2 hi = uLowSize - 0.5;
+    vec2 t1 = floor(p - 0.5) + 0.5;
+    vec2 f = p - t1;
+    vec2 w0 = f * (-0.5 + f * (1.0 - 0.5 * f));
+    vec2 w1 = 1.0 + f * f * (-2.5 + 1.5 * f);
+    vec2 w2 = f * (0.5 + f * (2.0 - 1.5 * f));
+    vec2 w3 = f * f * (-0.5 + 0.5 * f);
+    vec2 w12 = w1 + w2;
+    vec2 a = clamp(t1 - 1.0, lo, hi) / ts;
+    vec2 b = clamp(t1 + w2 / w12, lo, hi) / ts;
+    vec2 c = clamp(t1 + 2.0, lo, hi) / ts;
+    float wb = w12.x * w0.y;
+    float wl = w0.x * w12.y;
+    float wc = w12.x * w12.y;
+    float wr = w3.x * w12.y;
+    float wt = w12.x * w3.y;
+    vec3 col = (textureLod(uLow, vec2(b.x, a.y), 0.0).rgb * wb +
+                textureLod(uLow, vec2(a.x, b.y), 0.0).rgb * wl +
+                textureLod(uLow, vec2(b.x, b.y), 0.0).rgb * wc +
+                textureLod(uLow, vec2(c.x, b.y), 0.0).rgb * wr +
+                textureLod(uLow, vec2(b.x, c.y), 0.0).rgb * wt) / (wb + wl + wc + wr + wt);
+    ivec2 i0 = ivec2(clamp(t1 - 0.5, vec2(0.0), uLowSize - 1.0));
+    ivec2 i1 = ivec2(clamp(t1 + 0.5, vec2(0.0), uLowSize - 1.0));
+    vec3 n0 = texelFetch(uLow, i0, 0).rgb;
+    vec3 n1 = texelFetch(uLow, ivec2(i1.x, i0.y), 0).rgb;
+    vec3 n2 = texelFetch(uLow, ivec2(i0.x, i1.y), 0).rgb;
+    vec3 n3 = texelFetch(uLow, i1, 0).rgb;
+    return clamp(col, min(min(n0, n1), min(n2, n3)), max(max(n0, n1), max(n2, n3)));
   }
+
+  void main() {
+    vec2 fc = gl_FragCoord.xy;
+    vec3 col = fc.y >= uSplit ? texelFetch(uHigh, ivec2(fc), 0).rgb : upscale(fc * uK);
+
+    // The polygon: signed distance to its edges (positive inside, it is convex
+    // and counter-clockwise) and distance to its outline, at full resolution.
+    vec2 x = (fc - uC) / uS;
+    float sd = 1e9;
+    float ed2 = 1e9;
+    for (int i = 0; i < 8; i++) {
+      if (i >= uN) break;
+      vec2 a = uV[i];
+      vec2 e = uV[(i + 1) % uN] - a;
+      float len2 = max(dot(e, e), 1e-12);
+      vec2 q = x - a;
+      sd = min(sd, cr(e, q) / sqrt(len2));
+      vec2 r = q - e * clamp(dot(q, e) / len2, 0.0, 1.0);
+      ed2 = min(ed2, dot(r, r));
+    }
+    float vig = 1.0 - 0.4 * smoothstep(0.35, 1.15, length(fc - uC) / length(uC));
+    col = mix(col, vec3(0.027, 0.031, 0.047) * 0.55 * vig, clamp(sd * uS + 0.5, 0.0, 1.0));
+    // Line width set in CSS pixels (uPx canvas pixels each), never under one canvas pixel.
+    col = mix(col, vec3(0.45, 0.92, 1.0) * vig, smoothstep(1.6 * max(uPx, 1.0) / uS, 0.0, sqrt(ed2)) * 0.85);
+    frag = vec4(col, 1.0);
+  }`;
 
   function makeTarget() {
     const tex = gl.createTexture();
@@ -791,81 +847,279 @@
     t.h = h;
   }
 
-  const low = makeTarget();
-  const high = makeTarget();
+  // Everything that lives on the GPU, so it can be rebuilt if the context is lost.
+  let blit;
+  let low;
+  let high;
+  let maxDim = 4096;
 
-  function sizeCanvas() {
-    const density = Math.min(window.devicePixelRatio || 1, 3);
-    const w = Math.max(1, Math.round(window.innerWidth * density));
-    const h = Math.max(1, Math.round(window.innerHeight * density));
-    if (canvas.width !== w || canvas.height !== h) {
-      canvas.width = w;
-      canvas.height = h;
+  function initGL(restoring) {
+    if (restoring) {
+      programs.clear();
+      gl.bindVertexArray(gl.createVertexArray());
+      program(curN);
     }
-    sizeTarget(high, w, h);
+    const prog = gl.createProgram();
+    gl.attachShader(prog, compile(gl.VERTEX_SHADER, VERT));
+    gl.attachShader(prog, compile(gl.FRAGMENT_SHADER, PRESENT));
+    gl.linkProgram(prog);
+    if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(prog));
+    const u = (name) => gl.getUniformLocation(prog, name);
+    blit = {
+      prog, L: u('uLow'), H: u('uHigh'), K: u('uK'), Z: u('uLowSize'), P: u('uSplit'),
+      C: u('uC'), S: u('uS'), X: u('uPx'), V: u('uV[0]'), N: u('uN'),
+    };
+    gl.useProgram(prog);
+    gl.uniform1i(blit.L, 0);
+    gl.uniform1i(blit.H, 1);
+    low = makeTarget();
+    high = makeTarget();
+    const dims = gl.getParameter(gl.MAX_VIEWPORT_DIMS);
+    maxDim = Math.min(gl.getParameter(gl.MAX_TEXTURE_SIZE), gl.getParameter(gl.MAX_RENDERBUFFER_SIZE), dims[0], dims[1]);
+    queries.length = 0;
   }
 
-  function renderFractal(t, iters, rows) {
+  // GPU timing, where the browser offers it (mostly desktop Chrome): measures how
+  // many pixels a frame can afford directly. Elsewhere the frame rate decides.
+  const timer = gl.getExtension('EXT_disjoint_timer_query_webgl2');
+  const queries = [];
+  let moveRate = 0; // pixels per millisecond at ITER_MOVING
+  let restRate = 0; // pixels per millisecond at ITER_REST
+
+  function timed(kind, pixels, draw) {
+    if (!timer || queries.length >= 4) { draw(); return; }
+    const q = gl.createQuery();
+    gl.beginQuery(timer.TIME_ELAPSED_EXT, q);
+    draw();
+    gl.endQuery(timer.TIME_ELAPSED_EXT);
+    queries.push({ q, kind, pixels });
+  }
+
+  function pollTimers() {
+    while (queries.length && gl.getQueryParameter(queries[0].q, gl.QUERY_RESULT_AVAILABLE)) {
+      const { q, kind, pixels } = queries.shift();
+      const ms = gl.getQueryParameter(q, gl.QUERY_RESULT) / 1e6;
+      gl.deleteQuery(q);
+      if (gl.getParameter(timer.GPU_DISJOINT_EXT) || !(ms > 0.05)) continue;
+      const rate = pixels / ms;
+      if (kind === 'move') moveRate = moveRate ? moveRate + (rate - moveRate) * 0.3 : rate;
+      else restRate = restRate ? restRate + (rate - restRate) * 0.3 : rate;
+    }
+  }
+
+  // Dynamic resolution: the number of pixels in a moving frame. It falls quickly
+  // when frames are dropped and creeps back up while they aren't, up to a ceiling
+  // just under the last failure that relaxes slowly (so it doesn't keep pumping).
+  // The value learnt on this device is remembered for the next visit.
+  const MOVE_BUDGET_MS = 8;
+  let budgetPx = 4e5;
+  try {
+    const saved = +localStorage.getItem('bg-budget-v1');
+    if (saved > 0) budgetPx = saved;
+  } catch (err) {}
+  let savedBudget = budgetPx;
+  let ceilingPx = Infinity;
+  let frameAvg = 1 / 60;
+  let goodFrames = 0;
+  // A frame-rate cap the GPU isn't responsible for (a phone's low-power mode runs
+  // at 30 fps, for one): a drop in resolution that doesn't speed frames up is
+  // undone, and the frame time it couldn't beat becomes the new baseline.
+  let frameCap = 0;
+  let drop = null;
+
+  function clampBudget() {
+    budgetPx = Math.max(0.09 * cssW * cssH, Math.min(budgetPx, devW * devH));
+  }
+
+  function adapt(dt) {
+    frameAvg += (dt - frameAvg) * 0.15;
+    ceilingPx *= 1 + 0.03 * dt;
+    frameCap *= 1 - 0.02 * dt;
+    if (drop && ++drop.frames >= 20) {
+      if (frameAvg > 0.9 * drop.avg) {
+        budgetPx = drop.budget;
+        ceilingPx = Infinity;
+        frameCap = Math.max(frameCap, frameAvg);
+      }
+      drop = null;
+    }
+    if (frameAvg > Math.max(0.024, frameCap * 1.3)) {
+      if (!drop) drop = { budget: budgetPx, avg: frameAvg, frames: 0 };
+      ceilingPx = budgetPx * 0.9;
+      budgetPx *= 0.75;
+      frameAvg = Math.max(1 / 60, frameCap);
+      goodFrames = 0;
+    } else if (frameAvg < Math.max(0.0185, frameCap * 1.1)) {
+      if (++goodFrames >= 12) {
+        goodFrames = 0;
+        if (!moveRate) budgetPx = Math.min(budgetPx * 1.15, ceilingPx);
+      }
+    } else {
+      goodFrames = 0;
+    }
+    if (moveRate) budgetPx = Math.min(moveRate * MOVE_BUDGET_MS, ceilingPx);
+    clampBudget();
+  }
+
+  function saveBudget() {
+    if (Math.abs(budgetPx - savedBudget) < 0.05 * savedBudget) return;
+    savedBudget = budgetPx;
+    try { localStorage.setItem('bg-budget-v1', String(Math.round(budgetPx))); } catch (err) {}
+  }
+
+  // Canvas size. The device-pixel box from the ResizeObserver is exact; without
+  // it (Safari), the CSS box times devicePixelRatio is the best estimate.
+  let lost = false;
+  let started = false;
+
+  function applySize(entry) {
+    const box = entry && entry.contentBoxSize && entry.contentBoxSize[0];
+    const dev = entry && entry.devicePixelContentBoxSize && entry.devicePixelContentBoxSize[0];
+    const w = Math.max(1, box ? box.inlineSize : canvas.clientWidth || window.innerWidth);
+    const h = Math.max(1, box ? box.blockSize : canvas.clientHeight || window.innerHeight);
+    const dpr = window.devicePixelRatio || 1;
+    let pw = Math.max(1, Math.round(w * dpr));
+    let ph = Math.max(1, Math.round(h * dpr));
+    // The exact box differs from the estimate by a pixel or so of rounding. (Device
+    // emulation, as in DevTools, reports it in CSS pixels; that is ignored.)
+    if (dev && Math.abs(dev.inlineSize - pw) <= 2 && Math.abs(dev.blockSize - ph) <= 2) {
+      pw = Math.max(1, dev.inlineSize);
+      ph = Math.max(1, dev.blockSize);
+    }
+    // Very dense screens are capped at MAX_DENSITY, the same on both axes.
+    const cap = Math.min(1, MAX_DENSITY * w / pw, MAX_DENSITY * h / ph, maxDim / pw, maxDim / ph);
+    if (cap < 1) {
+      pw = Math.max(1, Math.floor(pw * cap));
+      ph = Math.max(1, Math.floor(ph * cap));
+    }
+    if (w === cssW && h === cssH && pw === devW && ph === devH) return;
+    cssW = w;
+    cssH = h;
+    devW = pw;
+    devH = ph;
+    canvas.width = devW;
+    canvas.height = devH;
+    sizeOverlay();
+    clampBudget();
+    if (lost) return;
+    sizeTarget(high, devW, devH);
+    sizeTarget(low, devW, devH);
+    if (!started) return;
+    if (!reduceMotion) lastInput = performance.now();
+    drawMoving();
+    drawOverlay(performance.now());
+    request();
+  }
+
+  function renderFractal(t, w, h, k, iters, rows) {
     const P = program(curN);
     gl.useProgram(P.prog);
     gl.bindFramebuffer(gl.FRAMEBUFFER, t.fbo);
-    gl.viewport(0, 0, t.w, t.h);
+    gl.viewport(0, 0, w, h);
     if (rows) {
       gl.enable(gl.SCISSOR_TEST);
-      gl.scissor(0, rows[0], t.w, rows[1] - rows[0]);
+      gl.scissor(0, rows[0], w, rows[1] - rows[0]);
     }
-    // The polygon scrolls away with the header, then stays just above the viewport.
-    gl.uniform2f(P.C, t.w / 2, t.h * (0.6 + lift()));
-    gl.uniform1f(P.S, Math.min(t.w, t.h) * 0.10);
-    gl.uniform1f(P.X, t.w / window.innerWidth);
+    // k is this target's pixels per canvas pixel. The polygon scrolls away with
+    // the header, then stays just above the viewport.
+    gl.uniform2f(P.C, k * devW / 2, k * devH * (0.6 + lift()));
+    gl.uniform1f(P.S, k * Math.min(devW, devH) * 0.10);
+    gl.uniform1f(P.X, k * devW / cssW);
     gl.uniform2fv(P.V, new Float32Array(cur));
     gl.uniform1i(P.I, iters);
     gl.drawArrays(gl.TRIANGLES, 0, 3);
     gl.disable(gl.SCISSOR_TEST);
   }
 
+  let lowK = 1;
+  let lowW = 1;
+  let lowH = 1;
+
   function present(split) {
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-    gl.viewport(0, 0, canvas.width, canvas.height);
+    gl.viewport(0, 0, devW, devH);
     gl.useProgram(blit.prog);
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, low.tex);
-    gl.uniform1i(blit.L, 0);
     gl.activeTexture(gl.TEXTURE1);
     gl.bindTexture(gl.TEXTURE_2D, high.tex);
-    gl.uniform1i(blit.H, 1);
-    gl.uniform2f(blit.Z, canvas.width, canvas.height);
+    gl.uniform1f(blit.K, lowK);
+    gl.uniform2f(blit.Z, lowW, lowH);
     gl.uniform1f(blit.P, split);
+    gl.uniform2f(blit.C, devW / 2, devH * (0.6 + lift()));
+    gl.uniform1f(blit.S, Math.min(devW, devH) * 0.10);
+    gl.uniform1f(blit.X, devW / cssW);
+    gl.uniform2fv(blit.V, new Float32Array(cur));
+    gl.uniform1i(blit.N, curN);
     gl.drawArrays(gl.TRIANGLES, 0, 3);
   }
 
-  // Low-resolution frame, stretched to the canvas; the sharp image starts again.
+  // A moving frame at the current budget, upscaled; the sharp image starts again.
+  // The width is rounded to 8 pixels so small budget changes don't shimmer.
   function drawMoving() {
-    sizeCanvas();
-    const scale = LEVELS[level];
-    sizeTarget(low, Math.max(1, Math.round(window.innerWidth * scale)), Math.max(1, Math.round(window.innerHeight * scale)));
-    renderFractal(low, ITER_MOVING);
-    present(canvas.height + 1);
+    const k = Math.min(1, Math.sqrt(budgetPx / (devW * devH)));
+    lowW = Math.min(devW, Math.max(8, Math.round(devW * k / 8) * 8));
+    lowK = lowW / devW;
+    lowH = Math.min(devH, Math.ceil(devH * lowK));
+    timed('move', lowW * lowH, () => renderFractal(low, lowW, lowH, lowK, ITER_MOVING));
+    present(devH + 1);
     sharpPending = true;
+    highValid = false;
     stripNext = 0;
   }
 
-  // One more strip of the full-resolution image.
+  // One more strip of the full-resolution image, sized to take about 12 ms. Strips
+  // sweep down the screen; rows not yet redone show the previous full-resolution
+  // image if there is one (highValid), else the last moving frame. While the
+  // polygon is still settling, sweeps repeat; the one started at rest is the last.
   let sharpPending = false;
+  let highValid = false;
   let stripNext = 0;
   let strips = 1;
+  let finalSweep = false;
 
-  function sharpStep() {
-    if (stripNext === 0) strips = Math.max(1, Math.ceil(canvas.width * canvas.height / STRIP_PIXELS));
-    const H = canvas.height;
-    const rowsPer = Math.ceil(H / strips);
-    const top = Math.max(0, H - stripNext * rowsPer);
+  function sharpStep(resting) {
+    if (stripNext === 0) {
+      const perStrip = restRate ? restRate * 12 : Math.max(6e5, budgetPx * 0.6);
+      strips = Math.max(1, Math.ceil(devW * devH / Math.min(4e6, Math.max(2e5, perStrip))));
+      finalSweep = resting;
+    }
+    const rowsPer = Math.ceil(devH / strips);
+    const top = Math.max(0, devH - stripNext * rowsPer);
     const bottom = Math.max(0, top - rowsPer);
-    renderFractal(high, ITER_REST, [bottom, top]);
+    timed('rest', devW * (top - bottom), () => renderFractal(high, devW, devH, 1, ITER_REST, [bottom, top]));
     stripNext++;
     const done = stripNext >= strips || bottom === 0;
-    present(done ? -1 : bottom);
-    if (done) sharpPending = false;
+    present(done || highValid ? -1 : bottom);
+    if (done) {
+      highValid = true;
+      stripNext = 0;
+      if (finalSweep) {
+        sharpPending = false;
+        saveBudget();
+      }
+    }
+  }
+
+  // How far the vertices may still swing, in radians (each oscillator's
+  // amplitude, from its energy, through the vertex-angle mapping, plus rotation).
+  function swing() {
+    const amp = 0.42 * Math.PI / n;
+    let a = 0;
+    for (let i = 0; i < n; i++) a = Math.max(a, amp * Math.sqrt(v[i] * v[i] / K[i] + (d[i] - target(i)) ** 2));
+    return a + Math.sqrt(rv * rv / KR + (r - 0.22 * s) ** 2);
+  }
+
+  // Below this remaining swing (in canvas pixels at the polygon) the motion can't
+  // be seen as motion, only as blur, so it is drawn at full resolution.
+  const SETTLE_PX = 1.5;
+
+  try {
+    initGL();
+  } catch (err) {
+    console.warn(err);
+    canvas.classList.add('static');
+    return;
   }
 
   const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -874,13 +1128,15 @@
   let lastInput = 0;
 
   function request() {
-    if (!raf) raf = requestAnimationFrame(frame);
+    if (!raf && !lost) raf = requestAnimationFrame(frame);
   }
 
-  // Draws at low resolution while anything is changing, then sharpens strip by
-  // strip and stops: with no input the background does not move.
+  // Draws at reduced resolution while anything is changing, then sharpens strip
+  // by strip and stops: with no input the background does not move.
   function frame(now) {
     raf = 0;
+    if (lost) return;
+    if (timer) pollTimers();
     const dt = lastT === null ? 1 / 60 : Math.min(0.05, (now - lastT) / 1000);
     lastT = now;
 
@@ -888,17 +1144,51 @@
     for (let k = 0; k < steps; k++) step(dt / steps);
     const morphing = updatePolygon(now);
 
-    const active = energy() > 2e-6 || now - lastInput < 120 || morphing;
-    if (active) {
+    // Moving: reduced resolution, every frame. Settling (the last sub-pixel wobble):
+    // full resolution, refreshed sweep after sweep. At rest: one last sweep, then stop.
+    const recent = now - lastInput < 120 || morphing;
+    const moving = recent || swing() * Math.min(devW, devH) * 0.10 > SETTLE_PX;
+    const resting = !recent && energy() <= 2e-6;
+    if (moving) {
       adapt(dt);
       drawMoving();
+    } else if (!resting) {
+      sharpPending = true;
+      sharpStep(false);
     } else if (sharpPending) {
-      sharpStep();
+      sharpStep(true);
     }
     const overlayMoving = drawOverlay(now);
-    if (active || overlayMoving || sharpPending) request();
+    if (moving || !resting || overlayMoving || sharpPending) request();
     else lastT = null;
   }
+
+  // Mobile browsers drop the GPU context of background tabs; show the still
+  // image meanwhile and rebuild everything when the context comes back.
+  canvas.addEventListener('webglcontextlost', (e) => {
+    e.preventDefault();
+    lost = true;
+    if (raf) cancelAnimationFrame(raf);
+    raf = 0;
+    lastT = null;
+    queries.length = 0;
+    canvas.classList.add('static');
+  });
+  canvas.addEventListener('webglcontextrestored', () => {
+    try {
+      initGL(true);
+    } catch (err) {
+      console.warn(err);
+      return;
+    }
+    lost = false;
+    canvas.classList.remove('static');
+    sizeTarget(high, devW, devH);
+    sizeTarget(low, devW, devH);
+    highValid = false;
+    drawMoving();
+    request();
+  });
 
   // Click modes.
   const sidesReadout = document.getElementById('sides');
@@ -971,13 +1261,6 @@
 
   let mode = 1;
 
-  window.addEventListener('resize', () => {
-    sizeOverlay();
-    if (!reduceMotion) lastInput = performance.now();
-    drawMoving();
-    drawOverlay(performance.now());
-    request();
-  });
 
   if (!reduceMotion) {
     let lastScrollY = window.scrollY;
@@ -1071,12 +1354,35 @@
     }
   });
 
-  // A quick low-resolution first frame, then the sharp image strip by strip,
-  // so a slow GPU doesn't hold up the first paint.
-  sizeOverlay();
-  level = 0;
+  // Follow the canvas's size, and the screen density (zoom, or the window moving
+  // to another monitor). The canvas is 100lvh tall, so a phone's address bar
+  // sliding in and out doesn't resize it.
+  if ('ResizeObserver' in window) {
+    const ro = new ResizeObserver((entries) => applySize(entries[entries.length - 1]));
+    try {
+      ro.observe(canvas, { box: 'device-pixel-content-box' });
+    } catch (err) {
+      ro.observe(canvas);
+    }
+  } else {
+    window.addEventListener('resize', () => applySize(null));
+  }
+  const watchDensity = () => {
+    const mq = window.matchMedia(`(resolution: ${window.devicePixelRatio || 1}dppx)`);
+    const changed = () => {
+      mq.removeEventListener('change', changed);
+      applySize(null);
+      watchDensity();
+    };
+    if (mq.addEventListener) mq.addEventListener('change', changed);
+  };
+  watchDensity();
+
+  // A first frame straight away, then the sharp image strip by strip, so a slow
+  // GPU doesn't hold up the first paint.
+  applySize(null);
+  started = true;
   drawMoving();
-  level = 1;
   request();
 })();
 </script>
