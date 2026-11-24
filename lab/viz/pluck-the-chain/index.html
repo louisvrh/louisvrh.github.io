@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Viz · SSP L4 · Pluck the chain: m ü = κ(u_{n+1}−2u_n+u_{n−1})</title>
+<style>
+:root{--bg:#ffffff;--panel:#f4f5f7;--ink:#1b1d21;--mute:#5d6470;--line:#d4d8de;--accent:#0072B2;--tens:#D55E00;--comp:#0072B2;--force:#009E73;--atom:#2b3340;--atomEdge:#ffffff;--mid:#ffffff}
+@media (prefers-color-scheme:dark){:root{--bg:#14171c;--panel:#1d2129;--ink:#e8eaee;--mute:#9aa3b0;--line:#363c47;--accent:#56B4E9;--tens:#F0A04B;--comp:#56B4E9;--force:#2ED3A3;--atom:#cfd6e2;--atomEdge:#14171c;--mid:#14171c}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+main{max-width:1040px;margin:0 auto;padding:14px 14px 40px}
+h1{font-size:21px;margin:4px 0 2px}
+.q{color:var(--mute);margin:0 0 10px}
+.eq{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px 14px;font:italic 18px/1.7 "Cambria Math","STIX Two Math",Georgia,serif;overflow-x:auto}
+.eq span.sm{font:14px system-ui,sans-serif;font-style:normal;color:var(--mute)}
+.eq sub{font-size:.68em}
+.eq .row{white-space:nowrap}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:8px;margin-top:10px}
+canvas{display:block;width:100%;touch-action:none;border-radius:6px}
+#main{background:var(--bg);cursor:grab}
+.bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:10px}
+button,select{font:inherit;font-size:14px;padding:7px 12px;border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:8px;cursor:pointer;min-height:36px}
+button:hover{border-color:var(--accent)}
+button.primary{background:var(--accent);color:#fff;border-color:var(--accent);font-weight:600}
+@media (prefers-color-scheme:dark){button.primary{color:#0b0d10}}
+button.on{outline:2px solid var(--accent)}
+.grp{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.lbl{font-size:13px;color:var(--mute);margin-right:2px}
+.ctrls{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:10px 18px;margin-top:10px}
+.ctrls label{display:block;font-size:14px}
+.ctrls input[type=range]{width:100%}
+.ctrls .nonphys{color:var(--mute);font-size:12.5px}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}
+@media(max-width:760px){.two{grid-template-columns:1fr}}
+.cap{font-size:13px;color:var(--mute);margin:2px 4px 4px}
+.read{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:6px 14px;font:13.5px/1.4 ui-monospace,Menlo,Consolas,monospace;margin-top:10px}
+.read div{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:6px 9px}
+.read b{font-weight:600}
+#note{font-size:13.5px;color:var(--mute);margin:6px 2px 0;min-height:20px}
+.notice li{margin:4px 0}
+details{margin-top:12px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:8px 14px}
+summary{cursor:pointer;font-weight:600}
+h2{font-size:16px;margin:16px 0 4px}
+.swatch{display:inline-block;width:12px;height:12px;border-radius:3px;vertical-align:-1px;margin:0 3px 0 8px}
+</style>
+</head>
+<body>
+<script src="../lab-back.js" defer></script><!-- added for louisvrh.github.io/lab: back link -->
+<main>
+<h1>Pluck the chain: m ü = κ(u<sub>n+1</sub> − 2u<sub>n</sub> + u<sub>n−1</sub>)</h1>
+<p class="q">Drag any atoms to set the starting extensions, let go, and watch the Hooke's-law forces do the rest. What does a pulse become on this chain?</p>
+
+<div class="eq">
+<div class="row">u<sub>n</sub> ≡ x<sub>n</sub> − na &nbsp; (4.3)</div>
+<div class="row">m ü<sub>n</sub> = F<sub>n,n+1</sub> + F<sub>n,n−1</sub> = κ ( u<sub>n+1</sub> − 2u<sub>n</sub> + u<sub>n−1</sub> ), &nbsp; F<sub>n,n+1</sub> = κ(u<sub>n+1</sub> − u<sub>n</sub>), &nbsp; F<sub>n,n−1</sub> = −κ(u<sub>n</sub> − u<sub>n−1</sub>)</div>
+<div class="row">ü<sub>n</sub> = ω<sub>D</sub>² (u<sub>n+1</sub> + u<sub>n−1</sub> − 2u<sub>n</sub>), &nbsp; ω<sub>D</sub> ≡ √(κ/m) &nbsp; (4.4) &nbsp;&nbsp;|&nbsp;&nbsp; ω<sub>k</sub> = 2ω<sub>D</sub>|sin(ka/2)| &nbsp; (4.10), &nbsp; v = ω<sub>D</sub>a for |k|a ≪ 1 &nbsp; (4.11)</div>
+<div class="row"><span class="sm">Units: a = m = κ = 1, so ω<sub>D</sub> = 1 and time is in units of 1/ω<sub>D</sub>. Motion is longitudinal (along the chain).</span></div>
+</div>
+
+<div class="card">
+<canvas id="main"></canvas>
+<div class="cap" id="mainCap"></div>
+</div>
+
+<div class="bar">
+  <button id="play" class="primary">▶ Release</button>
+  <button id="step">Step</button>
+  <button id="reset">Reset</button>
+  <button id="clear">Clear all</button>
+  <span class="grp"><span class="lbl">Drag sets:</span>
+    <button id="mDisp" class="on">Displacement</button><button id="mKick">Velocity kick</button></span>
+  <span class="grp"><span class="lbl">Drag shape:</span>
+    <select id="bump"><option value="0">single atom</option><option value="2">smooth bump (width 2)</option><option value="4">smooth bump (width 4)</option></select></span>
+</div>
+<div class="bar">
+  <span class="grp"><span class="lbl">Presets:</span>
+  <button id="pPluck">Pluck one atom</button><button id="pLong">Long wave (j = 1)</button><button id="pZone">Zone-edge (−1)<sup>n</sup></button><button id="pUni">Uniform shift</button></span>
+</div>
+<div id="note"></div>
+
+<div class="ctrls">
+  <label>N = <b id="vN">20</b> atoms<input id="N" type="range" min="5" max="60" step="1" value="20"></label>
+  <label>Boundary condition
+    <select id="bc"><option value="periodic">Periodic ring (Born–von Kármán)</option><option value="fixed">Fixed ends (walls)</option><option value="free">Free ends</option></select></label>
+  <label>Display magnification ×<b id="vMag">2</b> <span class="nonphys">(dragging is in true units)</span><input id="mag" type="range" min="1" max="8" step="0.5" value="2"></label>
+  <label>Speed ×<b id="vSpd">1.0</b><input id="spd" type="range" min="0.1" max="3" step="0.1" value="1"></label>
+  <label>Mode j = <b id="vJ">1</b>: <span id="jInfo"></span><input id="jj" type="range" min="1" max="10" step="1" value="1">
+    <span class="nonphys"><input id="trav" type="checkbox"> travelling wave (ring only)</span></label>
+  <label>Damping γ = <b id="vG">0.000</b> ω<sub>D</sub> <span class="nonphys">(non-physical; off by default)</span><input id="gam" type="range" min="0" max="0.2" step="0.005" value="0"></label>
+  <label><input id="chkF" type="checkbox"> Show net force arrows F<sub>n</sub> = κ(u<sub>n+1</sub> − 2u<sub>n</sub> + u<sub>n−1</sub>) on every atom</label>
+</div>
+
+<div class="read">
+  <div id="rT">t = 0</div>
+  <div id="rE">E = 0</div>
+  <div id="rDrift">drift: 0</div>
+  <div id="rMode">dominant mode: –</div>
+</div>
+<div class="read"><div id="rSel" style="grid-column:1/-1">Hover, touch or drag an atom to see its two spring forces.</div></div>
+
+<div class="two">
+  <div class="card"><div class="cap"><b>Which k did you excite?</b> Dots sit on the dispersion curve ω<sub>k</sub> = 2ω<sub>D</sub>|sin(ka/2)|; area ∝ share of the total energy in that mode (kinetic + spring).</div><canvas id="spec"></canvas></div>
+  <div class="card"><div class="cap"><b>Space–time plot</b> of u<sub>n</sub> (horizontal: atom n, vertical: time, newest at bottom). Dashed lines: v = ω<sub>D</sub>a from a localised pluck.</div><canvas id="st"></canvas></div>
+</div>
+
+<h2>What to notice</h2>
+<ul class="notice">
+<li>Pluck one atom: the pulse splits into two packets that run apart at up to v = ω<sub>D</sub>a (dashed lines), while short-wavelength ripples lag behind. Different k travel at different speeds, which is dispersion.</li>
+<li>Zone-edge mode (−1)<sup>n</sup>: the shape never moves, every spring is stretched or squeezed by 2u, and it oscillates at ω = 2ω<sub>D</sub>. The uniform shift (k = 0) has no force at all.</li>
+<li>Hover an atom: net force is the sum of its right-spring and left-spring forces. A stretched right spring (u<sub>n+1</sub> &gt; u<sub>n</sub>) pulls it right.</li>
+</ul>
+
+<details><summary>Model and assumptions</summary>
+<p>Harmonic (nearest-neighbour Hooke's law) chain of N identical atoms, longitudinal motion only, κ and m constant, a = m = κ = 1. Equation integrated: ü<sub>n</sub> = u<sub>n+1</sub> − 2u<sub>n</sub> + u<sub>n−1</sub>.</p>
+<p>Integrator: velocity Verlet (symplectic), fixed dt = 0.01 in units of 1/ω<sub>D</sub>, accumulator loop independent of frame rate. Energy oscillates at the 10<sup>−5</sup> level with no secular drift. Damping, if switched on, is applied as exact exponential half-kicks and is not part of the lecture model.</p>
+<p>Boundary conditions: fixed = both ends attached to rigid walls by springs (u<sub>0</sub> = u<sub>N+1</sub> = 0, N + 1 springs); free = end atoms have one spring only; periodic = u<sub>n+N</sub> = u<sub>n</sub> (Lecture 5), drawn as a ring where u is tangential. The mode plot uses the exact normal modes of each case: sine modes (fixed), cosine modes (free), Fourier modes (periodic); with fixed or free ends k is the standing-wave value πj/(N+1) or πj/N. A uniform shift is a zero-force mode only for free and periodic ends.</p>
+<p>Editing: dragging pauses the run and makes the current positions the new starting condition (velocities zeroed in displacement mode; kept in kick mode). Large displayed magnification can make atoms overlap on screen; the physics is unaffected (the equation is linear).</p>
+</details>
+</main>
+<script src="core.js"></script>
+<script>
+(function () {
+'use strict';
+var $ = function (id) { return document.getElementById(id); };
+var S = { N: 20, bc: 'periodic', mag: 2, running: false, speed: 1, mode: 'displace', forces: false, sel: -1,
+          preset: 'pluck', j: 1, travel: false, bump: 0, E0: 1, n0: -1, t0: 0, local: false, dirtySpec: true };
+var sim = new Core.Sim(S.N, S.bc);
+var AMP = 0.3, RATE = 3;                       // preset amplitude (a); physical time units per real second at speed 1
+var ST = { H: 220, rowDt: 0.2, buf: null, head: 0, count: 0, total: 0, sc: 0.05, t0: 0 };
+var cv = $('main'), cx = cv.getContext('2d'), sc = $('spec'), sx = sc.getContext('2d'), tc = $('st'), tx = tc.getContext('2d');
+var off = document.createElement('canvas'), ox = off.getContext('2d');
+var cs = null, dragging = null, hoverPrefers = true, dims = {};
+
+function colors() {
+  var g = getComputedStyle(document.documentElement);
+  cs = {}; ['bg','panel','ink','mute','line','accent','tens','comp','force','atom','atomEdge','mid'].forEach(function (k) { cs[k] = g.getPropertyValue('--' + k).trim(); });
+  cs.dark = window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches;
+}
+function hex(c) { c = c.replace('#', ''); if (c.length === 3) c = c[0]+c[0]+c[1]+c[1]+c[2]+c[2]; return [parseInt(c.substr(0,2),16), parseInt(c.substr(2,2),16), parseInt(c.substr(4,2),16)]; }
+function mix(a, b, f) { return [a[0]+(b[0]-a[0])*f, a[1]+(b[1]-a[1])*f, a[2]+(b[2]-a[2])*f]; }
+function rgb(c) { return 'rgb(' + Math.round(c[0]) + ',' + Math.round(c[1]) + ',' + Math.round(c[2]) + ')'; }
+
+/* ---------- sizing ---------- */
+function fit(c, cssH) {
+  var r = c.getBoundingClientRect(), d = Math.min(window.devicePixelRatio || 1, 3);
+  var w = Math.max(200, Math.round(r.width)); c.style.height = cssH + 'px';
+  c.width = Math.round(w * d); c.height = Math.round(cssH * d);
+  c.getContext('2d').setTransform(d, 0, 0, d, 0, 0); return { w: w, h: cssH };
+}
+function resizeAll() {
+  dims.main = fit(cv, S.bc === 'periodic' ? 360 : 230);
+  dims.spec = fit(sc, 250); dims.st = fit(tc, 250); draw();
+}
+window.addEventListener('resize', resizeAll);
+if (window.ResizeObserver) new ResizeObserver(function () { var w = Math.round(cv.getBoundingClientRect().width); if (dims.main && Math.abs(w - dims.main.w) > 1) resizeAll(); }).observe(cv);
+
+/* ---------- geometry ---------- */
+function geom() {
+  var W = dims.main.w, H = dims.main.h, N = S.N, g = { W: W, H: H, ring: S.bc === 'periodic' };
+  if (g.ring) { g.cx = W / 2; g.cy = H / 2 + 6; g.R = Math.min(H * 0.36, W * 0.4); g.sp = 2 * Math.PI * g.R / N; }
+  else { var m = 26, slots = S.bc === 'fixed' ? N + 1 : N - 1; g.x0 = m; g.sp = (W - 2 * m) / slots; g.cy = H * 0.5; }
+  g.r = Math.max(3, Math.min(9, g.sp * 0.27));
+  return g;
+}
+function posOf(g, n, u) {
+  if (g.ring) { var a = 2 * Math.PI * (n + S.mag * u) / S.N - Math.PI / 2, ca = Math.cos(a), sa = Math.sin(a);
+    return { x: g.cx + g.R * ca, y: g.cy + g.R * sa, tx: -sa, ty: ca, nx: ca, ny: sa }; }
+  var o = S.bc === 'fixed' ? 1 : 0;
+  return { x: g.x0 + (n + o + S.mag * u) * g.sp, y: g.cy, tx: 1, ty: 0, nx: 0, ny: -1 };
+}
+function wallPos(g, side) { return { x: g.x0 + (side < 0 ? 0 : (S.N + 1) * g.sp), y: g.cy }; }
+
+/* ---------- drawing ---------- */
+function arrow(c, x, y, dx, dy, col, w) {
+  var L = Math.hypot(dx, dy); if (L < 1.5) return;
+  c.strokeStyle = col; c.fillStyle = col; c.lineWidth = w || 2; c.beginPath(); c.moveTo(x, y); c.lineTo(x + dx, y + dy); c.stroke();
+  var ux = dx / L, uy = dy / L, h = Math.min(8, L * 0.5);
+  c.beginPath(); c.moveTo(x + dx, y + dy); c.lineTo(x + dx - ux * h - uy * h * 0.5, y + dy - uy * h + ux * h * 0.5);
+  c.lineTo(x + dx - ux * h + uy * h * 0.5, y + dy - uy * h - ux * h * 0.5); c.closePath(); c.fill();
+}
+function spring(c, p0, p1, r0, r1, g, ext) {
+  var dx = p1.x - p0.x, dy = p1.y - p0.y, L = Math.hypot(dx, dy); if (L < 2) return;
+  var ux = dx / L, uy = dy / L, vx = -uy, vy = ux;
+  var sx0 = p0.x + ux * r0, sy0 = p0.y + uy * r0, len = L - r0 - r1; if (len < 2) return;
+  var f = Math.max(-1, Math.min(1, ext / 0.5)), mid = hex(cs.mid), tc_ = hex(cs.tens), cc = hex(cs.comp);
+  var col = f >= 0 ? mix(hex(cs.mute), tc_, f) : mix(hex(cs.mute), cc, -f);
+  var amp = Math.max(2.5, Math.min(6, 0.17 * g.sp)) * Math.max(0.7, Math.min(1.6, Math.sqrt(g.sp / L)));
+  var K = g.sp < 20 ? 4 : 7, lead = 0.12 * len;
+  c.strokeStyle = rgb(col); c.lineWidth = 2; c.lineJoin = 'round'; c.beginPath(); c.moveTo(sx0, sy0);
+  c.lineTo(sx0 + ux * lead, sy0 + uy * lead);
+  for (var i = 0; i < K; i++) { var s = lead + (len - 2 * lead) * (i + 0.5) / K, o = (i % 2 ? -1 : 1) * amp; c.lineTo(sx0 + ux * s + vx * o, sy0 + uy * s + vy * o); }
+  c.lineTo(sx0 + ux * (len - lead), sy0 + uy * (len - lead)); c.lineTo(sx0 + ux * len, sy0 + uy * len); c.stroke();
+}
+function springForces(n) {
+  var u = sim.u, N = S.N, bc = S.bc;
+  var hasR = !(bc === 'free' && n === N - 1), hasL = !(bc === 'free' && n === 0);
+  var Fr = hasR ? Core.uAt(u, n + 1, bc) - u[n] : 0, Fl = hasL ? -(u[n] - Core.uAt(u, n - 1, bc)) : 0;
+  return { Fr: Fr, Fl: Fl, F: Fr + Fl, hasR: hasR, hasL: hasL };
+}
+var KF = 34; // pixels per unit force (kappa a)
+function drawMain() {
+  var g = geom(), c = cx, N = S.N, u = sim.u, i, p, q;
+  c.clearRect(0, 0, g.W, g.H); c.fillStyle = cs.bg; c.fillRect(0, 0, g.W, g.H);
+  c.font = '13px system-ui,sans-serif'; c.textBaseline = 'middle';
+  var P = []; for (i = 0; i < N; i++) P.push(posOf(g, i, u[i]));
+  if (g.ring) { c.strokeStyle = cs.line; c.setLineDash([3, 4]); c.beginPath(); c.arc(g.cx, g.cy, g.R, 0, 6.2832); c.stroke(); c.setLineDash([]); }
+  else { c.strokeStyle = cs.line; c.setLineDash([3, 4]); c.beginPath(); c.moveTo(0, g.cy + 28); c.lineTo(g.W, g.cy + 28); c.stroke(); c.setLineDash([]); }
+  // walls
+  if (S.bc === 'fixed') [-1, 1].forEach(function (s) { var w = wallPos(g, s); c.fillStyle = cs.mute; c.fillRect(w.x - 3 + (s < 0 ? -3 : 3), g.cy - 24, 6, 48);
+    c.strokeStyle = cs.mute; c.lineWidth = 1; for (var k = -3; k <= 3; k++) { c.beginPath(); c.moveTo(w.x + (s < 0 ? 0 : 6), g.cy + k * 7); c.lineTo(w.x + (s < 0 ? -6 : 12), g.cy + k * 7 + 5); c.stroke(); } });
+  // springs
+  var B = Core.bonds(N, S.bc), ext = Core.extensions(u, S.bc);
+  for (i = 0; i < B.length; i++) {
+    var a = B[i][0], b = B[i][1];
+    p = a < 0 ? wallPos(g, -1) : P[a]; q = b >= N ? wallPos(g, 1) : P[b];
+    spring(c, p, q, a < 0 ? 0 : g.r, b >= N ? 0 : g.r, g, ext[i]);
+  }
+  // equilibrium ticks
+  c.strokeStyle = cs.mute; c.lineWidth = 1;
+  for (i = 0; i < N; i++) { var e = posOf(g, i, 0); c.beginPath(); c.moveTo(e.x + e.nx * (g.r + 4), e.y + e.ny * (g.r + 4)); c.lineTo(e.x + e.nx * (g.r + 11), e.y + e.ny * (g.r + 11)); c.stroke(); }
+  // net force arrows
+  if (S.forces) for (i = 0; i < N; i++) { var Fi = springForces(i).F; arrow(c, P[i].x, P[i].y, P[i].tx * Fi * KF, P[i].ty * Fi * KF, cs.force, 2.2); }
+  // velocity arrows while editing in kick mode
+  if (!S.running && S.mode === 'kick') for (i = 0; i < N; i++) if (Math.abs(sim.v[i]) > 1e-9) arrow(c, P[i].x + P[i].nx * (g.r + 16), P[i].y + P[i].ny * (g.r + 16), P[i].tx * sim.v[i] * 40, P[i].ty * sim.v[i] * 40, cs.accent, 2.5);
+  // atoms
+  for (i = 0; i < N; i++) {
+    c.beginPath(); c.arc(P[i].x, P[i].y, g.r + (i === S.sel ? 1.5 : 0), 0, 6.2832); c.fillStyle = cs.atom; c.fill();
+    c.lineWidth = i === S.sel ? 2.5 : 1.2; c.strokeStyle = i === S.sel ? cs.accent : cs.atomEdge; c.stroke();
+  }
+  // selected atom: the two spring forces + net
+  if (S.sel >= 0 && S.sel < N) {
+    var n = S.sel, f = springForces(n), pp = P[n], sgn = g.ring ? 1 : 1;
+    var o1 = g.r + 24, o2 = g.r + 46, o3 = g.r + 68; if (g.ring) { o1 = -(g.r + 24); o2 = -(g.r + 46); o3 = -(g.r + 68); }
+    var lim = function (v) { return Math.max(-70, Math.min(70, v * KF)); };
+    if (f.hasR) { arrow(c, pp.x + pp.nx * o1, pp.y + pp.ny * o1, pp.tx * lim(f.Fr), pp.ty * lim(f.Fr), cs.tens, 3); }
+    if (f.hasL) { arrow(c, pp.x + pp.nx * o2, pp.y + pp.ny * o2, pp.tx * lim(f.Fl), pp.ty * lim(f.Fl), cs.comp, 3); }
+    arrow(c, pp.x + pp.nx * o3, pp.y + pp.ny * o3, pp.tx * lim(f.F), pp.ty * lim(f.F), cs.force, 3);
+    c.textAlign = 'left'; c.fillStyle = cs.ink; c.font = '12.5px system-ui,sans-serif';
+    var lab = function (o, t, val) { var ex = pp.x + pp.nx * o + pp.tx * lim(val), x0 = Math.max(ex, pp.x + pp.nx * o) + 8; var tw = c.measureText(t).width; c.fillText(t, Math.min(g.W - tw - 4, Math.max(4, x0)), pp.y + pp.ny * o); };
+    if (f.hasR) lab(o1, 'F n,n+1 (right spring)', f.Fr); if (f.hasL) lab(o2, 'F n,n−1 (left spring)', f.Fl); lab(o3, 'F n (net)', f.F);
+  }
+  // scale bar + legend
+  var bw = 0.5 * S.mag * g.sp; c.strokeStyle = cs.ink; c.lineWidth = 2; c.beginPath(); c.moveTo(12, g.H - 16); c.lineTo(12 + bw, g.H - 16); c.moveTo(12, g.H - 21); c.lineTo(12, g.H - 11); c.moveTo(12 + bw, g.H - 21); c.lineTo(12 + bw, g.H - 11); c.stroke();
+  c.fillStyle = cs.ink; c.textAlign = 'left'; c.font = '13px system-ui,sans-serif'; c.fillText('u = 0.5a  (drawn ×' + S.mag + ')', 18 + bw, g.H - 16);
+  c.fillStyle = cs.tens; c.fillRect(12, 10, 14, 5); c.fillStyle = cs.ink; c.fillText('stretched: tension', 32, 13);
+  c.fillStyle = cs.comp; c.fillRect(12, 26, 14, 5); c.fillStyle = cs.ink; c.fillText('compressed', 32, 29);
+  c.fillStyle = cs.force; c.fillRect(g.W - 150, 10, 14, 5); c.fillStyle = cs.ink; c.fillText('net force F n', g.W - 130, 13);
+  if (g.ring) { c.textAlign = 'center'; c.fillStyle = cs.mute; c.fillText('periodic ring', g.cx, g.cy - 8); c.fillText('u n+N = u n', g.cx, g.cy + 10); }
+}
+function drawSpec() {
+  var c = sx, W = dims.spec.w, H = dims.spec.h, L = 44, R = 12, T = 14, B = 38, w = W - L - R, h = H - T - B;
+  c.clearRect(0, 0, W, H); c.fillStyle = cs.bg; c.fillRect(0, 0, W, H);
+  var X = function (k) { return L + k / Math.PI * w; }, Y = function (om) { return T + h - om / 2.2 * h; };
+  c.strokeStyle = cs.line; c.lineWidth = 1; c.fillStyle = cs.mute; c.font = '13px system-ui,sans-serif'; c.textBaseline = 'middle';
+  c.textAlign = 'right'; [0, 1, 2].forEach(function (v) { c.beginPath(); c.moveTo(L, Y(v)); c.lineTo(L + w, Y(v)); c.stroke(); c.fillText(String(v), L - 6, Y(v)); });
+  c.textAlign = 'center'; [[0, '0'], [Math.PI / 2, 'π/2'], [Math.PI, 'π']].forEach(function (a) { c.beginPath(); c.moveTo(X(a[0]), T); c.lineTo(X(a[0]), T + h); c.stroke(); c.fillText(a[1], X(a[0]), T + h + 12); });
+  c.fillStyle = cs.ink; c.fillText('k a  (first Brillouin zone, k ≥ 0)', L + w / 2, H - 8);
+  c.save(); c.translate(12, T + h / 2); c.rotate(-Math.PI / 2); c.fillText('ω / ω_D', 0, 0); c.restore();
+  c.strokeStyle = cs.mute; c.lineWidth = 2; c.beginPath(); for (var k = 0; k <= 100; k++) { var kk = k / 100 * Math.PI; if (k) c.lineTo(X(kk), Y(2 * Math.sin(kk / 2))); else c.moveTo(X(0), Y(0)); } c.stroke();
+  // small-k sound line
+  c.setLineDash([5, 4]); c.strokeStyle = cs.accent; c.lineWidth = 1.5; c.beginPath(); c.moveTo(X(0), Y(0)); c.lineTo(X(Math.PI * 0.5), Y(Math.PI * 0.5)); c.stroke(); c.setLineDash([]);
+  c.fillStyle = cs.accent; c.textAlign = 'left'; c.fillText('ω = ω_D k a (v = ω_D a)', X(0.12), Y(1.55));
+  var spec = Core.spectrum(sim.u, sim.v, S.bc), Et = 0, i; spec.forEach(function (q) { Et += q.E; });
+  spec.forEach(function (q) { c.beginPath(); c.arc(X(q.k), Y(q.omega), 2.5, 0, 6.2832); c.fillStyle = cs.mute; c.fill(); });
+  var best = null;
+  if (Et > 1e-14) spec.forEach(function (q) { var fr = q.E / Et; if (fr < 0.002) return; if (!best || q.E > best.E) best = q;
+    c.beginPath(); c.arc(X(q.k), Y(q.omega), 3 + 13 * Math.sqrt(fr), 0, 6.2832); c.fillStyle = cs.tens; c.globalAlpha = 0.6; c.fill(); c.globalAlpha = 1; c.strokeStyle = cs.tens; c.lineWidth = 1; c.stroke(); });
+  S.best = best ? { k: best.k, om: best.omega, f: best.E / Et } : null;
+}
+function divColor(x) { // green (u>0, displaced right) / purple (u<0, left), neutral = background
+  x = Math.max(-1, Math.min(1, x)); var mid = hex(cs.mid), pos = cs.dark ? [60, 200, 120] : [0, 136, 55], neg = cs.dark ? [190, 130, 240] : [123, 50, 148];
+  return x >= 0 ? mix(mid, pos, x) : mix(mid, neg, -x);
+}
+function drawST() {
+  var c = tx, W = dims.st.w, H = dims.st.h, L = 44, R = 12, T = 12, B = 38, w = W - L - R, h = H - T - B, N = S.N, n, y;
+  c.clearRect(0, 0, W, H); c.fillStyle = cs.bg; c.fillRect(0, 0, W, H);
+  if (off.width !== N || off.height !== ST.H) { off.width = N; off.height = ST.H; }
+  var img = ox.createImageData(N, ST.H), d = img.data;
+  for (y = 0; y < ST.H; y++) { var age = ST.H - 1 - y, valid = age < ST.count, idx = ((ST.head - 1 - age) % ST.H + ST.H) % ST.H;
+    for (n = 0; n < N; n++) { var col = valid ? divColor(ST.buf[idx * N + n] / ST.sc) : hex(cs.panel), o = (y * N + n) * 4; d[o] = col[0]; d[o + 1] = col[1]; d[o + 2] = col[2]; d[o + 3] = 255; } }
+  ox.putImageData(img, 0, 0); c.imageSmoothingEnabled = false; c.drawImage(off, L, T, w, h);
+  c.strokeStyle = cs.line; c.strokeRect(L, T, w, h);
+  var tNew = ST.t0 + (ST.total - 1) * ST.rowDt, px = h / ST.H, X = function (nn) { return L + (nn + 0.5) / N * w; }, Y = function (t) { return T + h - (tNew - t) / ST.rowDt * px; };
+  c.fillStyle = cs.mute; c.font = '13px system-ui,sans-serif'; c.textBaseline = 'middle'; c.textAlign = 'right';
+  var step = 10, tTop = tNew - (Math.min(ST.count, ST.H) - 1) * ST.rowDt; for (var tm = Math.ceil(tTop / step) * step; tm <= tNew; tm += step) { var yy = Y(tm); c.beginPath(); c.moveTo(L - 4, yy); c.lineTo(L, yy); c.stroke(); c.fillText(String(tm), L - 7, yy); }
+  c.textAlign = 'center'; c.fillStyle = cs.ink; c.fillText('atom n', L + w / 2, H - 8);
+  [0, N - 1].forEach(function (nn) { c.fillStyle = cs.mute; c.fillText(String(nn), X(nn), T + h + 12); });
+  c.save(); c.translate(12, T + h / 2); c.rotate(-Math.PI / 2); c.fillStyle = cs.ink; c.fillText('t (1/ω_D)', 0, 0); c.restore();
+  // v = omega_D a guide lines from the pluck
+  if (S.local && S.n0 >= 0 && tNew > S.t0) {
+    c.save(); c.beginPath(); c.rect(L, T, w, h); c.clip(); c.setLineDash([6, 4]); c.strokeStyle = cs.ink; c.lineWidth = 1.5;
+    [-1, 1].forEach(function (s) { c.beginPath(); var prev = null, tt = Math.max(S.t0, tTop);
+      for (; tt <= tNew + 1e-9; tt += 0.25) { var nn = S.n0 + s * (tt - S.t0); if (S.bc === 'periodic') nn = ((nn % N) + N) % N; var xx = X(nn), yy2 = Y(tt);
+        if (nn < -0.5 || nn > N - 0.5 || (prev !== null && Math.abs(xx - prev) > w / 2)) { prev = null; c.moveTo(xx, yy2); continue; }
+        if (prev === null) c.moveTo(xx, yy2); else c.lineTo(xx, yy2); prev = xx; } c.stroke(); });
+    c.restore();
+  }
+}
+function draw() {
+  if (!cs) colors();
+  drawMain(); drawST(); if (S.dirtySpec || S.running) { drawSpec(); S.dirtySpec = false; }
+  readouts();
+}
+
+/* ---------- readouts ---------- */
+function fmt(x, d) { return (x >= 0 ? '+' : '−') + Math.abs(x).toFixed(d == null ? 3 : d); }
+function readouts() {
+  var e = sim.energy();
+  $('rT').textContent = 't = ' + sim.t.toFixed(2) + ' /ω_D';
+  $('rE').textContent = 'E = ' + e.E.toFixed(4) + '  (K ' + e.K.toFixed(3) + ' + U ' + e.P.toFixed(3) + ')';
+  $('rDrift').textContent = sim.gamma > 0 ? 'damped (non-physical): E/E₀ = ' + (S.E0 > 0 ? e.E / S.E0 : 0).toFixed(3)
+    : 'energy drift = ' + (S.E0 > 1e-12 ? ((e.E - S.E0) / S.E0).toExponential(1) : '0');
+  var b = S.best; $('rMode').textContent = b ? 'dominant mode: ka = ' + b.k.toFixed(3) + ', ω = ' + b.om.toFixed(3) + ' ω_D (' + Math.round(b.f * 100) + '% of E)' : 'dominant mode: none (E = 0)';
+  var el = $('rSel');
+  if (S.sel >= 0 && S.sel < S.N) { var f = springForces(S.sel), n = S.sel;
+    el.innerHTML = 'atom n = ' + n + ': u<sub>n</sub> = ' + fmt(sim.u[n]) + ' &nbsp; F<sub>n,n+1</sub> = κ(u<sub>n+1</sub>−u<sub>n</sub>) = ' + (f.hasR ? fmt(f.Fr) : 'no spring') +
+      ' &nbsp; F<sub>n,n−1</sub> = −κ(u<sub>n</sub>−u<sub>n−1</sub>) = ' + (f.hasL ? fmt(f.Fl) : 'no spring') + ' &nbsp; net F<sub>n</sub> = ' + fmt(f.F) + ' (' + (Math.abs(f.F) < 5e-4 ? 'no net force' : f.F > 0 ? 'pushed right' : 'pushed left') + ')';
+  } else el.textContent = 'Hover, touch or drag an atom to see its two spring forces and the sign logic of Eq. 4.3.';
+}
+function jmax() { return S.bc === 'fixed' ? S.N : (S.bc === 'free' ? S.N - 1 : Math.floor(S.N / 2)); }
+function jInfo() {
+  var jm = jmax(); $('jj').max = jm; if (S.j > jm) S.j = jm; $('jj').value = S.j; $('vJ').textContent = S.j;
+  var k = S.bc === 'fixed' ? Math.PI * S.j / (S.N + 1) : (S.bc === 'free' ? Math.PI * S.j / S.N : 2 * Math.PI * S.j / S.N), om = 2 * Math.sin(k / 2);
+  $('jInfo').textContent = 'ka = ' + k.toFixed(3) + ', ω = ' + om.toFixed(3) + ' ω_D, ω/k = ' + (om / k).toFixed(3) + ' ω_D a';
+  $('trav').disabled = S.bc !== 'periodic';
+}
+
+/* ---------- state management ---------- */
+function resetST() { ST.buf = new Float32Array(ST.H * S.N); ST.head = 0; ST.count = 0; ST.total = 0; ST.sc = 0.05; ST.t0 = sim.t; ST.next = sim.t; recordRow(); }
+function recordRow() {
+  var N = S.N, base = ST.head * N, i; for (i = 0; i < N; i++) { ST.buf[base + i] = sim.u[i]; if (Math.abs(sim.u[i]) > ST.sc) ST.sc = Math.abs(sim.u[i]); }
+  ST.head = (ST.head + 1) % ST.H; ST.count = Math.min(ST.count + 1, ST.H); ST.total++; ST.next = ST.t0 + ST.total * ST.rowDt;
+}
+function newSim() { var u = Float64Array.from(sim.u || []); sim = new Core.Sim(S.N, S.bc); sim.gamma = +$('gam').value; }
+function commit() { sim.setState(sim.u, sim.v); S.E0 = sim.energy().E; S.dirtySpec = true; resetST(); sim.t = 0; findSource(); }
+function findSource() {
+  var N = S.N, i, cnt = 0, bi = 0, bm = -1; for (i = 0; i < N; i++) { var m = Math.max(Math.abs(sim.u[i]), Math.abs(sim.v[i])); if (m > 1e-9) cnt++; if (m > bm) { bm = m; bi = i; } }
+  S.local = cnt >= 1 && cnt <= 3; S.n0 = bi; S.t0 = sim.t;
+}
+function applyState(u, v, run) {
+  sim.setState(u, v); S.E0 = sim.energy().E; S.dirtySpec = true; resetST(); findSource(); S.running = !!run; syncPlay(); draw();
+}
+function setNote(t) { $('note').textContent = t || ''; }
+function applyPreset(name, run) {
+  S.preset = name; var p = Core.preset(name, S.N, S.bc, AMP, { j: S.j, travel: S.travel && S.bc === 'periodic' });
+  applyState(p.u, p.v, run);
+  var msg = { pluck: 'One atom displaced and released: watch the pulse split into two dispersive packets.',
+    longwave: 'Lowest mode j = 1: long wavelength, close to the sound-wave limit ω ≈ ω_D k a.',
+    zoneedge: 'Zone-edge mode: neighbours move in antiphase, ω = 2ω_D, every spring maximally stretched or compressed, shape stays put.',
+    uniform: S.bc === 'fixed' ? 'With fixed ends a uniform shift stretches the end springs, so it is NOT force-free. Use free or periodic ends to see the k → 0 mode.' : 'Uniform shift (k = 0): all extensions are zero, so there is no force and nothing happens (gapless mode).',
+    mode: 'Normal mode j: a single k, so it oscillates at exactly ω = 2ω_D|sin(ka/2)|.' };
+  setNote(msg[name]);
+}
+function syncPlay() { var b = $('play'); b.textContent = S.running ? '⏸ Pause' : (sim.t === 0 ? '▶ Release' : '▶ Resume'); b.classList.toggle('on', S.running); }
+function setBtnOn() { $('mDisp').classList.toggle('on', S.mode === 'displace'); $('mKick').classList.toggle('on', S.mode === 'kick'); }
+function rebuild() {
+  sim = new Core.Sim(S.N, S.bc); sim.gamma = +$('gam').value; jInfo(); resizeAll();
+  if (S.preset) applyPreset(S.preset, S.running); else { applyState(new Float64Array(S.N), new Float64Array(S.N), false); }
+}
+
+/* ---------- animation loop ---------- */
+var last = 0, acc = 0;
+function frame(ts) {
+  requestAnimationFrame(frame);
+  if (!last) last = ts; var dt = Math.min(0.05, (ts - last) / 1000); last = ts;
+  if (S.running) {
+    acc += dt * RATE * S.speed; var n = 0, DT = Core.DT;
+    while (acc >= DT && n < 3000) { sim.step(DT); acc -= DT; n++; while (sim.t + 1e-9 >= ST.next) recordRow(); }
+    if (acc > 5 * DT) acc = 0;
+  }
+  draw();
+}
+document.addEventListener('visibilitychange', function () { last = 0; });
+
+/* ---------- pointer interaction ---------- */
+function pt(e) { var r = cv.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; }
+function hit(p, touch) {
+  var g = geom(), best = -1, bd = (touch ? 26 : 16) + g.r, i; for (i = 0; i < S.N; i++) { var q = posOf(g, i, sim.u[i]); var d = Math.hypot(q.x - p.x, q.y - p.y); if (d < bd) { bd = d; best = i; } } return best;
+}
+function wrapN(x) { var N = S.N; return ((x % N) + 1.5 * N) % N - N / 2; }
+function projVal(g, p, n) { // pointer position expressed as a displacement of atom n, in units of a (true units)
+  if (g.ring) { var ang = Math.atan2(p.y - g.cy, p.x - g.cx) + Math.PI / 2; return wrapN(ang / (2 * Math.PI) * S.N - n) / S.mag; }
+  var q = posOf(g, n, 0); return (p.x - q.x) / (S.mag * g.sp);
+}
+function distN(i, n) { var d = Math.abs(i - n); return S.bc === 'periodic' ? Math.min(d, S.N - d) : d; }
+cv.addEventListener('pointerdown', function (e) {
+  var p = pt(e), n = hit(p, e.pointerType === 'touch'); S.sel = n; if (n < 0) { return; }
+  e.preventDefault(); cv.setPointerCapture(e.pointerId);
+  if (S.running || sim.t > 0) { if (S.mode === 'displace') sim.v.fill(0); S.running = false; commit(); }
+  var g = geom(); dragging = { n: n, s0: projVal(g, p, n), baseU: Float64Array.from(sim.u), baseV: Float64Array.from(sim.v) };
+  S.preset = null; cv.style.cursor = 'grabbing'; syncPlay(); setNote('Drag to edit; edit more atoms if you like, then press Release.');
+});
+cv.addEventListener('pointermove', function (e) {
+  var p = pt(e);
+  if (!dragging) { if (e.pointerType !== 'touch') { var h = hit(p, false); S.sel = h; cv.style.cursor = h >= 0 ? 'grab' : 'default'; } return; }
+  var g = geom(), n = dragging.n, delta = projVal(g, p, n) - dragging.s0; if (g.ring) delta = wrapN(delta * S.mag) / S.mag;
+  var w = S.bump, i, wt;
+  for (i = 0; i < S.N; i++) { var dd = distN(i, n); wt = w === 0 ? (i === n ? 1 : 0) : Math.exp(-dd * dd / (2 * w * w)); if (wt < 0.01) wt = 0;
+    if (S.mode === 'displace') { var tgt = Math.max(-1.2, Math.min(1.2, dragging.baseU[n] + delta)) - dragging.baseU[n]; sim.u[i] = dragging.baseU[i] + tgt * wt; }
+    else { sim.v[i] = dragging.baseV[i] + 2 * delta * wt; } }
+  Core.force(sim.u, S.bc, sim.F); S.dirtySpec = true; draw();
+});
+function endDrag(e) { if (!dragging) return; dragging = null; cv.style.cursor = 'grab'; commit(); syncPlay(); draw(); }
+cv.addEventListener('pointerup', endDrag); cv.addEventListener('pointercancel', endDrag);
+cv.addEventListener('pointerleave', function (e) { if (!dragging && e.pointerType !== 'touch') { S.sel = -1; } });
+
+/* ---------- controls ---------- */
+$('play').onclick = function () {
+  if (!S.running) { if (sim.t === 0) findSource(); S.running = true; } else S.running = false; syncPlay();
+};
+$('step').onclick = function () { S.running = false; if (sim.t === 0) findSource(); var k = Math.round(0.1 / Core.DT); for (var i = 0; i < k; i++) sim.step(Core.DT); while (sim.t + 1e-9 >= ST.next) recordRow(); syncPlay(); draw(); };
+$('reset').onclick = function () { S.running = false; var u0 = sim.u0 ? Float64Array.from(sim.u0) : new Float64Array(S.N), v0 = sim.v0 ? Float64Array.from(sim.v0) : new Float64Array(S.N); applyState(u0, v0, false); setNote('Back to the starting condition (t = 0). Press Release.'); };
+$('clear').onclick = function () { S.preset = null; applyState(new Float64Array(S.N), new Float64Array(S.N), false); setNote('All atoms at equilibrium. Drag atoms to set up your own initial condition.'); };
+$('mDisp').onclick = function () { S.mode = 'displace'; setBtnOn(); setNote('Displacement mode: drag an atom left/right; velocities are zero when released.'); };
+$('mKick').onclick = function () { S.mode = 'kick'; setBtnOn(); setNote('Kick mode: drag an atom to give it an initial velocity (blue arrow), displacement unchanged.'); };
+$('bump').onchange = function () { S.bump = +this.value; };
+$('pPluck').onclick = function () { applyPreset('pluck', true); };
+$('pLong').onclick = function () { S.j = 1; jInfo(); applyPreset('longwave', true); };
+$('pZone').onclick = function () { S.j = jmax(); jInfo(); applyPreset('zoneedge', true); };
+$('pUni').onclick = function () { applyPreset('uniform', true); };
+$('N').oninput = function () { S.N = +this.value; $('vN').textContent = S.N; rebuild(); };
+$('bc').onchange = function () { S.bc = this.value; rebuild(); };
+$('mag').oninput = function () { S.mag = +this.value; $('vMag').textContent = S.mag; draw(); };
+$('spd').oninput = function () { S.speed = +this.value; $('vSpd').textContent = S.speed.toFixed(1); };
+$('gam').oninput = function () { sim.gamma = +this.value; $('vG').textContent = (+this.value).toFixed(3); S.E0 = Math.max(sim.energy().E, 1e-12); };
+$('chkF').onchange = function () { S.forces = this.checked; draw(); };
+$('jj').oninput = function () { S.j = +this.value; jInfo(); applyPreset('mode', true); };
+$('trav').onchange = function () { S.travel = this.checked; if (S.preset === 'mode') applyPreset('mode', true); };
+document.addEventListener('keydown', function (e) { if (e.code === 'Space' && e.target.tagName !== 'BUTTON' && e.target.tagName !== 'SELECT' && e.target.tagName !== 'INPUT') { e.preventDefault(); $('play').click(); } });
+if (window.matchMedia) matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function () { colors(); draw(); });
+
+/* ---------- init ---------- */
+colors(); jInfo(); resizeAll(); applyPreset('pluck', true);
+if (window.__chainTest !== undefined) window.__chain = { S: S, get sim() { return sim; }, ST: ST, applyPreset: applyPreset };
+requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Viz · SSP L4 · Diatomic chain: acoustic vs optical modes</title>
+<style>
+:root{
+  --bg:#ffffff; --panel:#f5f5f8; --fg:#1d1d22; --mut:#5d5d69; --line:#d6d6de;
+  --at1:#0072B2; --at2:#E69F00; --ac:#009E73; --op:#CC79A7; --acc:#3a3aa8;
+}
+@media (prefers-color-scheme: dark){
+  :root{ --bg:#17171c; --panel:#202027; --fg:#ececf0; --mut:#a0a0ad; --line:#3a3a45; --at1:#3fa0e0; --acc:#9a9aff; --ac:#2fc59b; }
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+.wrap{max-width:1080px;margin:0 auto;padding:16px 14px 40px}
+h1{font-size:1.3rem;margin:0 0 2px;line-height:1.25}
+.q{color:var(--mut);margin:0 0 12px;font-size:1rem}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin:10px 0}
+.eq{font-family:"Cambria Math","STIX Two Math",Cambria,"Times New Roman",serif;font-size:1.06rem;line-height:2.0;overflow-x:auto}
+.eq i{font-style:italic}
+.ss{display:inline-block;vertical-align:middle;line-height:1;font-size:.72em;margin-left:1px}
+.ss sup,.ss sub{display:block;line-height:1.05;font-size:1em;vertical-align:baseline}
+.rad{white-space:nowrap}.rad .ov{border-top:1px solid currentColor;padding:0 2px}
+.conv{font-size:.88rem;color:var(--mut);margin-top:4px}
+.two{display:grid;grid-template-columns:3fr 2fr;gap:10px}
+@media (max-width:760px){.two{grid-template-columns:1fr}}
+canvas{display:block;width:100%;touch-action:pan-y;border-radius:6px}
+.ptitle{font-size:.92rem;font-weight:600;margin:0 0 4px}
+.psub{font-size:.82rem;color:var(--mut);margin:4px 0 0}
+.ctl{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:8px 18px}
+.ctl label{display:block;font-size:.9rem}
+.ctl output{font-variant-numeric:tabular-nums;font-weight:600}
+input[type=range]{width:100%;margin:2px 0 0}
+.row{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 0;align-items:center}
+button{font:inherit;font-size:.88rem;padding:5px 10px;border-radius:7px;border:1px solid var(--line);background:var(--bg);color:var(--fg);cursor:pointer}
+button:hover{border-color:var(--acc)}
+button.on{background:var(--acc);color:#fff;border-color:var(--acc)}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:7px;overflow:hidden}
+.seg button{border:0;border-radius:0;border-right:1px solid var(--line)}.seg button:last-child{border-right:0}
+.legend{display:flex;flex-wrap:wrap;gap:4px 16px;font-size:.84rem;color:var(--mut);margin-top:6px;align-items:center}
+.dot{display:inline-block;width:11px;height:11px;border-radius:50%;vertical-align:-1px;margin-right:4px}
+.sw{display:inline-block;width:22px;height:0;border-top:3px solid;vertical-align:3px;margin-right:4px}
+table{border-collapse:collapse;width:100%;font-size:.9rem}
+th,td{padding:4px 8px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+th{font-weight:600}td.v{font-variant-numeric:tabular-nums}
+td:first-child{color:var(--mut);width:34%}
+.hl{background:rgba(120,120,200,.12)}
+.cols{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+@media (max-width:760px){.cols{grid-template-columns:1fr}}
+.cols .card{margin:0}.cols h3{margin:0 0 4px;font-size:.98rem}.cols p{margin:0;font-size:.9rem}
+#status{font-size:.92rem;margin:8px 0 0}
+#fold{display:none;font-size:.9rem;margin-top:8px;padding:8px 10px;border-left:3px solid var(--acc);background:var(--bg)}
+ul.n{margin:4px 0 0;padding-left:20px}ul.n li{margin:3px 0}
+details summary{cursor:pointer;font-weight:600}
+details p,details li{font-size:.9rem}
+.k{font-weight:600}
+</style>
+</head>
+<body>
+<script src="../lab-back.js" defer></script><!-- added for louisvrh.github.io/lab: back link -->
+<div class="wrap">
+<h1>Viz · SSP L4 · Diatomic chain: acoustic vs optical modes</h1>
+<p class="q">Do the two atoms inside a unit cell always move opposite to each other? Drag <b>k</b> and compare the two branches.</p>
+
+<div class="card">
+  <div class="eq" id="eqs"></div>
+  <div class="conv" id="conv"></div>
+</div>
+
+<div class="two">
+  <div class="card">
+    <p class="ptitle">Dispersion &omega;(k) over the first Brillouin zone (click or drag to set k)</p>
+    <canvas id="cvD" aria-label="Dispersion relation"></canvas>
+  </div>
+  <div class="card">
+    <p class="ptitle">Intra-cell amplitude ratio B<sub>1</sub>/B<sub>2</sub> vs |k|</p>
+    <canvas id="cvR" aria-label="Amplitude ratio versus k"></canvas>
+    <p class="psub">B<sub>1</sub>/B<sub>2</sub> = (A<sub>1</sub>/A<sub>2</sub>)e<sup>ika/2</sup>: the ratio of the two atoms' amplitudes with the e<sup>ika/2</sup> lag that two atoms a/2 apart would have in any wave removed. Positive: same direction. Negative: opposite. The plot is clipped at the top where atom 2 comes to rest.</p>
+  </div>
+</div>
+
+<div class="card">
+  <div class="ctl">
+    <div>
+      <label>wavevector <span class="k">k = <output id="oK"></output></span> &nbsp;<span id="oKa" style="color:var(--mut)"></span>
+      <input type="range" id="sK" min="-1" max="1" step="0.001" value="0.25"></label>
+    </div>
+    <div>
+      <label>mass ratio <span class="k">m<sub>1</sub>/m<sub>2</sub> = <output id="oR"></output></span>
+      <input type="range" id="sR" min="1" max="5" step="0.05" value="3"></label>
+    </div>
+    <div>
+      <label>intra-cell spring <span class="k">C<sub>1</sub> = <output id="oC1"></output> C</span>
+      <input type="range" id="sC1" min="0.2" max="3" step="0.05" value="1"></label>
+    </div>
+    <div>
+      <label>inter-cell spring <span class="k">C<sub>2</sub> = <output id="oC2"></output> C</span>
+      <input type="range" id="sC2" min="0.2" max="3" step="0.05" value="1"></label>
+    </div>
+    <div>
+      <label>animation speed <span class="k">&times;<output id="oS"></output></span>
+      <input type="range" id="sS" min="0.1" max="4" step="0.05" value="1"></label>
+    </div>
+    <div>
+      <label>amplitude (magnified) <span class="k">max |u| = <output id="oA"></output> a</span>
+      <input type="range" id="sA" min="0.03" max="0.3" step="0.005" value="0.1"></label>
+    </div>
+  </div>
+  <div class="row">
+    <span style="font-size:.88rem;color:var(--mut)">Show:</span>
+    <span class="seg" id="segB"><button data-b="both" class="on">Both</button><button data-b="0">Acoustic</button><button data-b="1">Optical</button></span>
+    <button id="bPlay">Pause</button><button id="bStep">Step</button><button id="bRestart">Restart time</button>
+    <label style="font-size:.86rem"><input type="checkbox" id="cOwn"> each row at its own pace (frequencies not to scale)</label>
+  </div>
+  <div class="row">
+    <span style="font-size:.88rem;color:var(--mut)">Go to:</span>
+    <button id="bK0">k &rarr; 0 (slide)</button><button id="bK00">k = 0</button><button id="bKe">k = &pi;/a</button>
+    <span style="font-size:.88rem;color:var(--mut);margin-left:8px">Presets:</span>
+    <button id="pEq">m<sub>1</sub> = m<sub>2</sub> (folding)</button><button id="p3">m<sub>1</sub>/m<sub>2</sub> = 3</button><button id="p5">m<sub>1</sub>/m<sub>2</sub> = 5</button><button id="pSp">equal masses, C<sub>1</sub> &ne; C<sub>2</sub></button>
+  </div>
+</div>
+
+<div class="card">
+  <canvas id="cvC" aria-label="Animated chain"></canvas>
+  <div class="legend">
+    <span><span class="dot" style="background:var(--at1)"></span>atom 1 (mass m<sub>1</sub>, heavier)</span>
+    <span><span class="dot" style="background:var(--at2)"></span>atom 2 (mass m<sub>2</sub>)</span>
+    <span><span class="sw" style="border-color:#D55E00"></span>stretched spring</span>
+    <span><span class="sw" style="border-color:#56B4E9"></span>compressed spring</span>
+    <span>shaded bands = unit cells (a pair joined by the C<sub>1</sub> spring); dashed box = the cell used in the readouts; ghost circles = equilibrium; arrows = displacement &times;2.5 (atom 1 above, atom 2 below)</span>
+  </div>
+  <p id="status"></p>
+  <div id="fold"></div>
+</div>
+
+<div class="card">
+  <p class="ptitle" id="kline"></p>
+  <table id="tbl"></table>
+</div>
+
+<div class="cols">
+  <div class="card"><h3 style="color:var(--ac)">Acoustic</h3><p>At long wavelength every cell moves together <i>and</i> the two atoms inside each cell move together: no spring is stretched, so the restoring force vanishes and &omega; &rarr; 0 (&omega; &asymp; v|k|). Atoms in a cell are in step for all k (same direction, apart from the small lag across a/2).</p></div>
+  <div class="card"><h3 style="color:var(--op)">Optical</h3><p>The two atoms beat against each other in every cell, with the centre of mass fixed at k = 0. The intra-cell spring is stretched even though every cell does the same thing, so &omega; stays finite: &omega;<sup>2</sup> = 2C/&mu;. Amplitude ratio A<sub>1</sub>/A<sub>2</sub> = &minus;m<sub>2</sub>/m<sub>1</sub>.</p></div>
+  <div class="card"><h3>What is and is not true</h3><p>&ldquo;Opposite motion inside a cell&rdquo; is a property of the <b>optical branch only</b>. For k &ne; 0 the relative displacement u<sup>(2)</sup><sub>n</sub> &minus; u<sup>(1)</sup><sub>n</sub> carries a factor e<sup>ikna</sup>, so it changes from cell to cell; it is the same in every cell only at k = 0.</p></div>
+</div>
+
+<div class="card">
+  <b>What to notice</b>
+  <ul class="n">
+    <li>Slide k &rarr; 0: the acoustic row freezes into a rigid shift of the whole chain (atoms together, &omega; &rarr; 0, springs unstretched), while the optical row keeps oscillating with the atoms opposite and the cell centre of mass at rest.</li>
+    <li>Move k to &pi;/a: the acoustic mode has only the heavy atoms moving, the optical mode only the light atoms. Raise m<sub>1</sub>/m<sub>2</sub> to open the gap between them; at m<sub>1</sub>=m<sub>2</sub> it closes.</li>
+    <li>At intermediate k, look at the dashed cell and its neighbours: the ratio of the two atoms' amplitudes and the cell-to-cell phase ka both matter.</li>
+  </ul>
+</div>
+
+<div class="card">
+<details><summary>Model and assumptions</summary>
+<ul class="n">
+<li>Infinite 1D chain of alternating masses m<sub>1</sub> (atom 1) and m<sub>2</sub> (atom 2), nearest-neighbour harmonic springs, longitudinal motion (transverse motion obeys the same equations). Atom 1 sits at x = na, atom 2 at x = na + a/2, whatever the spring constants. The animation shows a 12-cell (8 on narrow screens) window of the infinite chain, so k is a free continuous parameter.</li>
+<li>Units: m<sub>2</sub> = 1 and C = 1; &omega; is in units of &radic;(C/m<sub>2</sub>), time in &radic;(m<sub>2</sub>/C). The sliders set m<sub>1</sub>/m<sub>2</sub>, C<sub>1</sub>/C and C<sub>2</sub>/C.</li>
+<li>Each mode is the exact normal-mode solution u<sup>(j)</sup><sub>n</sub> = Re[A<sub>j</sub>e<sup>i(kna&minus;&omega;t)</sup>], with &omega;<sup>2</sup> from m<sub>1</sub>m<sub>2</sub>&omega;<sup>4</sup> &minus; (C<sub>1</sub>+C<sub>2</sub>)(m<sub>1</sub>+m<sub>2</sub>)&omega;<sup>2</sup> + 4C<sub>1</sub>C<sub>2</sub>sin<sup>2</sup>(ka/2) = 0 and (A<sub>1</sub>, A<sub>2</sub>) from the 2&times;2 eigenproblem, normalised to max(|A<sub>1</sub>|,|A<sub>2</sub>|) = 1. No numerical integration is needed; the animation is the analytic solution. Overall phase of A is arbitrary.</li>
+<li>Both rows share one clock, so relative frequencies are true. As k &rarr; 0 the acoustic row slows to a stop because &omega; &rarr; 0; tick &ldquo;each row at its own pace&rdquo; to see the pattern.</li>
+<li>For C<sub>1</sub> &ne; C<sub>2</sub> the amplitude ratio B<sub>1</sub>/B<sub>2</sub> is complex in general (the plot also shows its imaginary part, dashed), and at the zone edge both atoms move in both branches. Equal springs give the clean &ldquo;one sublattice at rest&rdquo; result. Arrow lengths are displacement &times;2.5.</li>
+<li>Checked offline against the equations of motion on an explicit chain, a full 2N&times;2N dynamical-matrix diagonalisation, and a velocity-Verlet simulation of a periodic chain (energy conserved, positions match the animated formula).</li>
+</ul>
+</details>
+</div>
+</div>
+
+<script src="core.js"></script>
+<script>
+(function(){
+'use strict';
+var PI=Math.PI, $=function(id){return document.getElementById(id);};
+var COL={at1:'#0072B2',at2:'#E69F00',ac:'#009E73',op:'#CC79A7',st:[213,94,0],co:[86,180,233]};
+var S={kk:0.25,branch:'both',focus:0,r:3,C1:1,C2:1,speed:1,amp:0.10,playing:true,own:false,t:0,tween:null,dirty:true};
+var isDark=function(){return window.matchMedia&&matchMedia('(prefers-color-scheme: dark)').matches;};
+function theme(){var d=isDark();return d?{fg:'#ececf0',mut:'#a0a0ad',grid:'#3a3a45',band:'rgba(255,255,255,0.05)',neu:[150,150,165],ghost:'rgba(255,255,255,0.4)',at1:'#3fa0e0',ac:'#2fc59b'}:{fg:'#1d1d22',mut:'#5d5d69',grid:'#d6d6de',band:'rgba(0,0,0,0.045)',neu:[105,105,120],ghost:'rgba(0,0,0,0.4)',at1:'#0072B2',ac:'#009E73'};}
+function par(){return {m1:S.r,m2:1,C1:S.C1,C2:S.C2};}
+function fx(x,d){return (d<0?'−':'')+Math.abs(x).toFixed(d===undefined?2:Math.abs(d));}
+function num(x,n){var s=x.toFixed(n);return s.replace('-','−');}
+function piStr(x){return num(x/PI,2)+'π';}
+function mix(a,b,t){return 'rgb('+Math.round(a[0]+(b[0]-a[0])*t)+','+Math.round(a[1]+(b[1]-a[1])*t)+','+Math.round(a[2]+(b[2]-a[2])*t)+')';}
+
+/* ---------- equations ---------- */
+function U(j,n){return '<i>u</i><span class="ss"><sup>('+j+')</sup><sub>'+n+'</sub></span>';}
+function M(i){return '<i>m</i><sub>'+i+'</sub>';}
+function Cc(i){return '<i>C</i><sub>'+i+'</sub>';}
+$('eqs').innerHTML=
+ M(1)+' <i>ü</i><span class="ss"><sup>(1)</sup><sub>n</sub></span> = '+Cc(1)+'('+U(2,'n')+' − '+U(1,'n')+') + '+Cc(2)+'('+U(2,'n−1')+' − '+U(1,'n')+')<br>'+
+ M(2)+' <i>ü</i><span class="ss"><sup>(2)</sup><sub>n</sub></span> = '+Cc(2)+'('+U(1,'n+1')+' − '+U(2,'n')+') + '+Cc(1)+'('+U(1,'n')+' − '+U(2,'n')+')<br>'+
+ 'trial '+U('j','n')+' = <i>A</i><sub><i>j</i></sub> e<sup><i>i</i>(<i>kna</i>−<i>ωt</i>)</sup> &nbsp;⇒&nbsp; for '+Cc(1)+' = '+Cc(2)+' = <i>C</i>:&nbsp; <i>ω</i><sup>2</sup> = <i>C</i>(1/'+M(1)+' + 1/'+M(2)+') ± <i>C</i><span class="rad">√<span class="ov">(1/'+M(1)+' + 1/'+M(2)+')<sup>2</sup> − 4 sin<sup>2</sup>(<i>ka</i>/2)/('+M(1)+M(2)+')</span></span>';
+$('conv').innerHTML='Convention: a = cell length (atoms a/2 apart), atom 1 at x = na, atom 2 at x = na + a/2; k in (−π/a, π/a]; ω in units of √(C/m₂) with C = 1, m₂ = 1. Acoustic (−): k→0 gives <i>A</i>₁ = <i>A</i>₂, ω ≈ v|k|. Optical (+): k→0 gives ω² = 2C/μ, <i>A</i>₁/<i>A</i>₂ = −m₂/m₁.';
+
+/* ---------- canvas plumbing ---------- */
+var cv={D:$('cvD'),R:$('cvR'),C:$('cvC')}, ctx={}, dim={};
+function size(key,h){var c=cv[key],dpr=window.devicePixelRatio||1,w=Math.max(200,c.clientWidth||300);
+  c.width=Math.round(w*dpr);c.height=Math.round(h*dpr);c.style.height=h+'px';
+  ctx[key]=c.getContext('2d');ctx[key].setTransform(dpr,0,0,dpr,0,0);dim[key]={w:w,h:h};}
+function rows(){return S.branch==='both'?2:1;}
+var ROWH=176;
+function resize(){size('D',Math.max(230,Math.min(320,Math.round((cv.D.clientWidth||600)*0.52))));size('R',Math.max(230,Math.min(320,Math.round((cv.R.clientWidth||400)*0.62))));size('C',ROWH*rows());S.dirty=true;}
+
+/* ---------- state-derived data ---------- */
+var EV=[null,null],WK=null;
+function compute(){var p=par(),k=S.kk*PI;EV[0]=Core.eigvec(k,p,0);EV[1]=Core.eigvec(k,p,1);}
+
+/* ---------- dispersion plot ---------- */
+function niceMax(v){return Math.ceil(v*1.12*4)/4;}
+function drawDisp(){
+  var c=ctx.D,W=dim.D.w,H=dim.D.h,T=theme(),p=par();
+  var L=48,R=12,Tp=12,B=36,pw=W-L-R,ph=H-Tp-B;
+  var w0=Core.omega(0,p,1),ymax=niceMax(w0);
+  var X=function(kk){return L+(kk+1)/2*pw;},Y=function(w){return Tp+ph-w/ymax*ph;};
+  c.clearRect(0,0,W,H);c.font='13px system-ui,sans-serif';c.lineWidth=1;
+  // grid and axes
+  c.strokeStyle=T.grid;c.fillStyle=T.mut;c.textAlign='right';c.textBaseline='middle';
+  var step=ymax>3?1:0.5;
+  for(var y=0;y<=ymax+1e-9;y+=step){c.beginPath();c.moveTo(L,Y(y));c.lineTo(L+pw,Y(y));c.stroke();c.fillText(y.toFixed(step<1?1:0),L-6,Y(y));}
+  c.textAlign='center';c.textBaseline='top';
+  var tk=[[-1,'−π/a'],[-0.5,'−π/2a'],[0,'0'],[0.5,'π/2a'],[1,'π/a']];
+  tk.forEach(function(t){c.beginPath();c.moveTo(X(t[0]),Tp);c.lineTo(X(t[0]),Tp+ph);c.stroke();c.fillText(t[1],X(t[0]),Tp+ph+5);});
+  c.fillStyle=T.fg;c.fillText('k',L+pw/2,H-17);
+  c.save();c.translate(13,Tp+ph/2);c.rotate(-PI/2);c.textBaseline='middle';c.fillText('ω  [√(C/m₂)]',0,0);c.restore();
+  // gap band at zone edge
+  var wa=Core.omega(PI,p,0),wo=Core.omega(PI,p,1);
+  if(wo-wa>0.02){c.fillStyle='rgba(150,150,150,0.16)';c.fillRect(L,Y(wo),pw,Y(wa)-Y(wo));c.fillStyle=T.mut;c.textAlign='left';c.textBaseline='middle';c.fillText('gap',L+6,(Y(wo)+Y(wa))/2);}
+  // limits
+  c.setLineDash([4,4]);c.strokeStyle=T.mut;c.lineWidth=1;c.textBaseline='bottom';c.textAlign='left';c.fillStyle=T.mut;
+  c.beginPath();c.moveTo(X(-0.25),Y(w0));c.lineTo(X(0.25),Y(w0));c.stroke();
+  c.textAlign=W<480?'right':'left';c.fillText('optical k→0: √(2C/μ) = '+w0.toFixed(2),W<480?X(-0.27):X(0.27),Y(w0)+4);
+  c.setLineDash([]);
+  // branches
+  [0,1].forEach(function(b){c.beginPath();for(var i=0;i<=240;i++){var kk=-1+2*i/240,w=Core.omega(kk*PI,p,b);if(i)c.lineTo(X(kk),Y(w));else c.moveTo(X(kk),Y(w));}
+    c.strokeStyle=b?COL.op:T.ac;c.lineWidth=(S.focus===b||S.branch==='both')?3:1.6;c.stroke();});
+  // monatomic overlay for m1=m2, C1=C2
+  if(Math.abs(S.r-1)<1e-9&&Math.abs(S.C1-S.C2)<1e-9){
+    c.setLineDash([2,5]);c.strokeStyle=T.fg;c.lineWidth=1.4;
+    c.beginPath();for(var i=0;i<=240;i++){var kk=-1+2*i/240,w=2*Math.sqrt(S.C1)*Math.abs(Math.sin(kk*PI/4));if(i)c.lineTo(X(kk),Y(w));else c.moveTo(X(kk),Y(w));}c.stroke();
+    c.beginPath();for(var i=0;i<=240;i++){var kk=-1+2*i/240,w=2*Math.sqrt(S.C1)*Math.abs(Math.sin((2*PI-Math.abs(kk)*PI)/4));if(i)c.lineTo(X(kk),Y(w));else c.moveTo(X(kk),Y(w));}c.stroke();
+    c.setLineDash([]);}
+  // marker
+  c.strokeStyle=T.fg;c.globalAlpha=0.55;c.lineWidth=1.5;c.beginPath();c.moveTo(X(S.kk),Tp);c.lineTo(X(S.kk),Tp+ph);c.stroke();c.globalAlpha=1;
+  [0,1].forEach(function(b){var w=EV[b].w;c.beginPath();c.arc(X(S.kk),Y(w),S.focus===b?7:5,0,2*PI);c.fillStyle=b?COL.op:T.ac;c.fill();c.strokeStyle=T.fg;c.lineWidth=1.5;c.stroke();});
+  c.textAlign='left';c.textBaseline='top';c.fillStyle=T.ac;c.fillText('acoustic',L+6,Tp+4);c.fillStyle=COL.op;c.fillText('optical',L+6,Tp+22);
+  if(Math.abs(S.r-1)<1e-9&&Math.abs(S.C1-S.C2)<1e-9){c.fillStyle=T.fg;c.fillText('dashed: monatomic 2√(C/m)|sin(ka/4)|, folded',L+6,Tp+40);}
+  dim.D.geo={L:L,pw:pw,Y:Y,Tp:Tp,ph:ph};
+}
+
+/* ---------- ratio plot ---------- */
+function drawRatio(){
+  var c=ctx.R,W=dim.R.w,H=dim.R.h,T=theme(),p=par();
+  var L=40,R=12,Tp=12,B=36,pw=W-L-R,ph=H-Tp-B,y0=-2,y1=4;
+  var X=function(kk){return L+kk*pw;},Y=function(v){return Tp+(y1-v)/(y1-y0)*ph;};
+  c.clearRect(0,0,W,H);c.font='13px system-ui,sans-serif';c.lineWidth=1;c.strokeStyle=T.grid;c.fillStyle=T.mut;c.textAlign='right';c.textBaseline='middle';
+  for(var y=y0;y<=y1;y++){c.beginPath();c.moveTo(L,Y(y));c.lineTo(L+pw,Y(y));c.stroke();c.fillText(String(y).replace('-','−'),L-6,Y(y));}
+  c.textAlign='center';c.textBaseline='top';
+  [[0,'0'],[0.5,'π/2a'],[1,'π/a']].forEach(function(t){c.beginPath();c.moveTo(X(t[0]),Tp);c.lineTo(X(t[0]),Tp+ph);c.stroke();c.fillText(t[1],X(t[0]),Tp+ph+5);});
+  c.fillStyle=T.fg;c.fillText('|k|',L+pw/2,H-17);
+  c.strokeStyle=T.fg;c.lineWidth=1.5;c.beginPath();c.moveTo(L,Y(0));c.lineTo(L+pw,Y(0));c.stroke();
+  c.save();c.beginPath();c.rect(L,Tp,pw,ph);c.clip();
+  // asymptotes
+  c.setLineDash([4,4]);c.lineWidth=1;c.strokeStyle=T.mut;c.fillStyle=T.mut;c.textAlign='left';c.textBaseline='bottom';
+  c.beginPath();c.moveTo(L,Y(1));c.lineTo(L+pw,Y(1));c.stroke();
+  var m=-p.m2/p.m1;c.beginPath();c.moveTo(L,Y(m));c.lineTo(L+pw,Y(m));c.stroke();
+  c.setLineDash([]);
+  c.textBaseline='top';c.fillText('k→0 acoustic: +1',L+pw*0.42,Y(1)+2);
+  c.fillText('k→0 optical: −m₂/m₁ = '+num(m,2),L+pw*0.42,Y(m)+2);
+  var cplx=Math.abs(p.C1-p.C2)>1e-9;
+  [0,1].forEach(function(b){
+    [0,1].forEach(function(part){ if(part===1&&!cplx) return;
+      c.beginPath();var pen=false;
+      for(var i=0;i<=300;i++){var kk=i/300,k=kk*PI,ev=Core.eigvec(k,p,b),r=Core.ratioB(ev,k);
+        if(!r){pen=false;continue;}var v=r[part],yy=Y(Math.max(Math.min(v,50),-50));
+        if(pen)c.lineTo(X(kk),yy);else{c.moveTo(X(kk),yy);pen=true;}}
+      c.strokeStyle=b?COL.op:T.ac;c.lineWidth=part?1.4:((S.focus===b||S.branch==='both')?3:1.6);c.setLineDash(part?[3,3]:[]);c.stroke();c.setLineDash([]);});
+  });
+  var ak=Math.abs(S.kk);c.strokeStyle=T.fg;c.globalAlpha=0.55;c.lineWidth=1.5;c.beginPath();c.moveTo(X(ak),Tp);c.lineTo(X(ak),Tp+ph);c.stroke();c.globalAlpha=1;
+  c.restore();
+  [0,1].forEach(function(b){var r=Core.ratioB(EV[b],S.kk*PI);var col=b?COL.op:T.ac;
+    if(!r){c.fillStyle=col;c.beginPath();c.moveTo(X(ak),Tp+1);c.lineTo(X(ak)-6,Tp+11);c.lineTo(X(ak)+6,Tp+11);c.closePath();c.fill();return;}
+    var v=r[0];if(v>y1){c.fillStyle=col;c.beginPath();c.moveTo(X(ak),Tp+1);c.lineTo(X(ak)-6,Tp+11);c.lineTo(X(ak)+6,Tp+11);c.closePath();c.fill();return;}
+    if(v<y0)return;
+    c.beginPath();c.arc(X(ak),Y(v),S.focus===b?7:5,0,2*PI);c.fillStyle=col;c.fill();c.strokeStyle=T.fg;c.lineWidth=1.5;c.stroke();});
+  c.textAlign='left';c.textBaseline='top';c.fillStyle=T.ac;c.fillText('acoustic',L+pw*0.2,Tp+4);c.fillStyle=COL.op;c.fillText('optical',L+pw*0.2,Tp+22);
+  if(cplx){c.fillStyle=T.mut;c.fillText('dashed: imaginary part',L+pw*0.2,Tp+40);}
+  dim.R.geo={L:L,pw:pw};
+}
+
+/* ---------- chain ---------- */
+function verdict(ev,k){
+  var a1=Core.cabs(ev.A1),a2=Core.cabs(ev.A2);
+  if(a2<0.04*a1) return {txt:'only atom 1 (heavy) moves; atom 2 at rest',cls:'one'};
+  if(a1<0.04*a2) return {txt:'only atom 2 (light) moves; atom 1 at rest',cls:'one'};
+  var R=Core.ratioB(ev,k),d=Math.atan2(R[1],R[0]);
+  if(Math.abs(d)<PI/2-0.35) return {txt:'atoms in a cell move TOGETHER',cls:'tog'};
+  if(Math.abs(d)>PI/2+0.35) return {txt:'atoms in a cell move OPPOSITE',cls:'opp'};
+  return {txt:'atoms in a cell: phase-shifted',cls:'mix'};
+}
+function arrow(c,x0,x1,y,col){c.strokeStyle=col;c.fillStyle=col;c.lineWidth=2;c.beginPath();c.moveTo(x0,y);c.lineTo(x1,y);c.stroke();
+  var dx=x1-x0;if(Math.abs(dx)>6){var s=dx>0?1:-1;c.beginPath();c.moveTo(x1,y);c.lineTo(x1-s*6,y-3.5);c.lineTo(x1-s*6,y+3.5);c.closePath();c.fill();}else{c.beginPath();c.arc(x0,y,1.6,0,2*PI);c.fill();}}
+function coil(c,xa,xb,y,lw,col){var L=xb-xa;c.strokeStyle=col;c.lineWidth=lw;c.beginPath();
+  if(L<6){c.moveTo(xa,y);c.lineTo(xb,y);}else{var n=6,amp=Math.min(5,L*0.18);c.moveTo(xa,y);c.lineTo(xa+L*0.12,y);
+    for(var i=0;i<n;i++){var x=xa+L*(0.12+0.76*(i+0.5)/n);c.lineTo(x,y+(i%2?amp:-amp));}c.lineTo(xb-L*0.12,y);c.lineTo(xb,y);}c.stroke();}
+
+function drawRow(c,W,y0,b,theta){
+  var T=theme(),p=par(),k=S.kk*PI,ev=EV[b],N=W>=640?12:8,mg=16,s=(W-2*mg)/(2*N),H=ROWH;
+  var yc=y0+96,r2=Math.min(9,s*0.26),r1=r2*Math.cbrt(S.r),nc=Math.floor(N/2),ampPx=S.amp*2*s,GAIN=2.5;
+  var col=b?COL.op:T.ac;
+  // title
+  c.font='600 14px system-ui,sans-serif';c.textBaseline='top';c.textAlign='left';c.fillStyle=col;
+  c.fillText((b?'OPTICAL':'ACOUSTIC')+' branch',10,y0+6);
+  var wt=Math.abs(ev.w)<1e-6?'0':ev.w.toFixed(3);c.font='13px system-ui,sans-serif';c.fillStyle=T.fg;
+  c.fillText('ω = '+wt+'  [√(C/m₂)]',W>=520?150:130,y0+(W>=520?7:8));
+  var v=verdict(ev,k),narrow=W<520;c.textAlign=narrow?'left':'right';c.font=(narrow?'600 12px':'600 14px')+' system-ui,sans-serif';
+  c.fillStyle={tog:T.ac,opp:COL.op,one:T.fg,mix:T.fg}[v.cls];c.fillText(v.txt,narrow?10:W-10,y0+(narrow?40:6));
+  // bands & cell labels
+  for(var n=0;n<N;n++){var xl=mg+2*n*s;
+    if(n%2===0){c.fillStyle=T.band;c.fillRect(xl,y0+56,2*s,H-56-18);}
+    var d=n-nc;c.fillStyle=T.mut;c.textAlign='center';c.textBaseline='top';c.font=(s<14?'10px':'12px')+' system-ui,sans-serif';
+    c.fillText(d===0?'n':(d>0?'n+'+d:'n−'+(-d)),xl+s,y0+H-17);}
+  c.setLineDash([4,3]);c.strokeStyle=T.fg;c.globalAlpha=0.7;c.lineWidth=1.3;c.strokeRect(mg+2*nc*s+1,y0+56,2*s-2,H-56-18);c.setLineDash([]);c.globalAlpha=1;
+  // positions
+  var e1=[],e2=[],x1=[],x2=[];
+  for(var n=0;n<N;n++){var u1=ampPx*Core.dispPhase(ev,k,1,n-nc,theta),u2=ampPx*Core.dispPhase(ev,k,2,n-nc,theta);
+    e1.push(mg+(2*n+0.5)*s);e2.push(mg+(2*n+1.5)*s);x1.push(e1[n]+u1);x2.push(e2[n]+u2);}
+  // ghosts
+  c.strokeStyle=T.ghost;c.lineWidth=1;c.setLineDash([2,2]);
+  for(var n=0;n<N;n++){c.beginPath();c.arc(e1[n],yc,r1,0,2*PI);c.stroke();c.beginPath();c.arc(e2[n],yc,r2,0,2*PI);c.stroke();}
+  c.setLineDash([]);
+  // springs
+  var norm=2*ampPx,lwC1=1+1.1*Math.min(3,p.C1),lwC2=1+1.1*Math.min(3,p.C2);
+  function spr(xa,ra,xb,rb,lw,len0){var ext=(xb-xa)-len0,t=Math.max(-1,Math.min(1,ext/norm*1.5));
+    var colr=t>=0?mix(T.neu,COL.st,t):mix(T.neu,COL.co,-t);coil(c,xa+ra,xb-rb,yc,lw,colr);}
+  for(var n=0;n<N;n++){spr(x1[n],r1,x2[n],r2,lwC1,s);if(n<N-1)spr(x2[n],r2,x1[n+1],r1,lwC2,s);}
+  c.fillStyle=T.mut;c.textAlign='right';c.textBaseline='middle';c.font='14px system-ui,sans-serif';c.fillText('⋯',mg-2,yc);c.textAlign='left';c.fillText('⋯',W-mg+2,yc);
+  // atoms
+  for(var n=0;n<N;n++){
+    c.beginPath();c.arc(x1[n],yc,r1,0,2*PI);c.fillStyle=T.at1;c.fill();c.strokeStyle=T.fg;c.lineWidth=1;c.stroke();
+    c.beginPath();c.arc(x2[n],yc,r2,0,2*PI);c.fillStyle=COL.at2;c.fill();c.stroke();
+    if(r2>=7){c.fillStyle='#fff';c.textAlign='center';c.textBaseline='middle';c.font='600 11px system-ui,sans-serif';c.fillText('1',x1[n],yc+0.5);c.fillStyle='#000';c.fillText('2',x2[n],yc+0.5);}
+  }
+  // arrows
+  var ya=yc-r1-16,yb=yc+r1+16;
+  for(var n=0;n<N;n++){arrow(c,e1[n],e1[n]+GAIN*(x1[n]-e1[n]),ya,T.at1);arrow(c,e2[n],e2[n]+GAIN*(x2[n]-e2[n]),yb,COL.at2);}
+}
+function drawChain(){
+  var c=ctx.C,W=dim.C.w,H=dim.C.h,T=theme();c.clearRect(0,0,W,H);
+  var wRef=1.6,ths=[];
+  [0,1].forEach(function(b){ths[b]=S.own?wRef*S.t:EV[b].w*S.t;});
+  var list=S.branch==='both'?[0,1]:[+S.branch],y=0;
+  list.forEach(function(b){drawRow(c,W,y,b,ths[b]);y+=ROWH;});
+  if(list.length===2){c.strokeStyle=T.grid;c.lineWidth=1;c.beginPath();c.moveTo(0,ROWH);c.lineTo(W,ROWH);c.stroke();}
+}
+
+/* ---------- readouts ---------- */
+var ROWS=[
+ ['ω  [√(C/m₂)]',function(b,ev){return Math.abs(ev.w)<1e-9?'0':num(ev.w,3);}],
+ ['period T  [√(m₂/C)]',function(b,ev){return ev.w<1e-6?'∞ (ω = 0)':(ev.w<0.02?num(2*PI/ev.w,0):num(2*PI/ev.w,2));}],
+ ['|A₁| : |A₂| (max = 1)',function(b,ev){return num(Core.cabs(ev.A1),2)+' : '+num(Core.cabs(ev.A2),2);}],
+ ['A₁/A₂ (cell-origin convention)',function(b,ev){var a1=Core.cabs(ev.A1),a2=Core.cabs(ev.A2);if(a2<1e-6*a1)return '∞ (atom 2 at rest)';if(a1<1e-6*a2)return '0 (atom 1 at rest)';var R=Core.cdiv(ev.A1,ev.A2);return num(Core.cabs(R),3)+' ∠ '+piStr(Math.atan2(R[1],R[0]));}],
+ ['B₁/B₂ = (A₁/A₂)e^{ika/2}',function(b,ev,k){var R=Core.ratioB(ev,k);if(!R)return '\u221e (atom 2 at rest)';return Math.abs(R[1])<1e-6?num(R[0],3):num(R[0],3)+(R[1]<0?' − ':' + ')+Math.abs(R[1]).toFixed(3)+'i';}],
+ ['inside one cell',function(b,ev,k){var v=verdict(ev,k);return '<b style="color:'+({tog:COL.ac,opp:COL.op,one:'inherit',mix:'inherit'})[v.cls]+'">'+v.txt+'</b>';}],
+ ['intra-cell spring stretch |A₂−A₁|',function(b,ev,k){return num(Core.observables(ev,k,par()).intra,3);}],
+ ['inter-cell spring stretch |A₁e^{ik}−A₂|',function(b,ev,k){return num(Core.observables(ev,k,par()).inter,3);}],
+ ['cell centre-of-mass amplitude',function(b,ev,k){var o=Core.observables(ev,k,par()).com;return num(o,3)+(o<1e-9?'  (fixed)':'');}]
+];
+function buildTable(){var h='<tr><th></th><th style="color:var(--ac)">Acoustic</th><th style="color:var(--op)">Optical</th></tr>';
+  ROWS.forEach(function(r,i){h+='<tr><td>'+r[0].replace('e^{ika/2}','e<sup>ika/2</sup>').replace('e^{ik}','e<sup>ik</sup>')+'</td><td class="v" id="t0_'+i+'"></td><td class="v" id="t1_'+i+'"></td></tr>';});$('tbl').innerHTML=h;}
+function updateReadouts(){
+  var k=S.kk*PI,p=par();
+  ROWS.forEach(function(r,i){[0,1].forEach(function(b){var el=$('t'+b+'_'+i);el.innerHTML=r[1](b,EV[b],k);el.className='v'+((S.branch==='both'||+S.branch===b)?'':'');});});
+  var lam=Math.abs(k)<1e-6?'∞':num(2*PI/Math.abs(k),1)+' a';
+  $('kline').innerHTML='k = '+num(S.kk,3)+' π/a &nbsp;|&nbsp; cell-to-cell phase ka = '+num(S.kk*180,1)+'° &nbsp;|&nbsp; wavelength λ = '+lam;
+  var v=Core.soundSpeed(p),a=Math.abs(S.kk),eq=Math.abs(p.C1-p.C2)<1e-9,mu=p.m1*p.m2/(p.m1+p.m2),txt;
+  if(a<0.08) txt='<b>Long-wavelength limit.</b> Acoustic: both atoms and all cells move together, so springs are barely stretched and ω ≈ v|k| = '+num(v*Math.abs(k),3)+' → 0 (v = '+num(v,3)+'). Optical: the atoms oppose each other (B₁/B₂ → −m₂/m₁ = '+num(-p.m2/p.m1,2)+') with the cell centre of mass fixed; the intra-cell spring is stretched even if every cell does the same, so ω → √(C₁+C₂)/μ = '+num(Core.omega(0,p,1),3)+(eq?' = √(2C/μ)':'')+'.';
+  else if(a>0.96) txt=eq&&Math.abs(S.r-1)>1e-9?'<b>Zone edge.</b> Acoustic: only the heavy atoms (atom 1) move, ω² = 2C/m₁. Optical: only the light atoms (atom 2) move, ω² = 2C/m₂. The frequency gap between them is '+num(Core.omega(PI,p,1)-Core.omega(PI,p,0),3)+'.':'<b>Zone edge.</b> '+(eq?'With m₁ = m₂ the two branches meet here (ω² = 2C/m).':'With C₁ ≠ C₂ both atoms move in both branches; the gap is '+num(Core.omega(PI,p,1)-Core.omega(PI,p,0),3)+'.');
+  else txt='<b>Intermediate k.</b> Two things matter: the cell-to-cell phase ka = '+num(S.kk*180,0)+'° and the intra-cell amplitude ratio. The acoustic atoms still move the same way (B₁/B₂ > 0) and the optical atoms oppositely (B₁/B₂ < 0), but the amplitudes are no longer in ratio 1 : −m₂/m₁, and the relative displacement within a cell now varies from cell to cell.';
+  $('status').innerHTML=txt;
+  var f=$('fold');if(Math.abs(S.r-1)<1e-9&&eq){f.style.display='block';f.innerHTML='<b>m₁ = m₂ and C₁ = C₂: zone folding.</b> This is really a monatomic chain with spacing a/2, whose dispersion is 2√(C/m)|sin(ka/4)| (dashed). Describing it with a two-atom cell of length a folds that curve back at k = ±π/a: the upper half becomes the &ldquo;optical&rdquo; branch and there is no gap. The acoustic atoms move as one wave; the optical atoms move in the same wave seen at k′ = k − 2π/a, i.e. neighbours opposite to each other.';}else f.style.display='none';
+}
+
+/* ---------- UI wiring ---------- */
+function syncLabels(){
+  $('oK').textContent=num(S.kk,3)+' π/a';$('oKa').textContent='(ka = '+num(S.kk*180,1)+'°)';
+  $('oR').textContent=S.r.toFixed(2);$('oC1').textContent=S.C1.toFixed(2);$('oC2').textContent=S.C2.toFixed(2);
+  $('oS').textContent=S.speed.toFixed(2);$('oA').textContent=S.amp.toFixed(3);
+  $('sK').value=S.kk;$('sR').value=S.r;$('sC1').value=S.C1;$('sC2').value=S.C2;$('sS').value=S.speed;$('sA').value=S.amp;
+}
+function changed(){compute();syncLabels();updateReadouts();S.dirty=true;}
+function setK(kk){S.kk=Math.max(-1,Math.min(1,kk));changed();}
+$('sK').addEventListener('input',function(e){S.tween=null;setK(+e.target.value);});
+$('sR').addEventListener('input',function(e){S.r=+e.target.value;changed();});
+$('sC1').addEventListener('input',function(e){S.C1=+e.target.value;changed();});
+$('sC2').addEventListener('input',function(e){S.C2=+e.target.value;changed();});
+$('sS').addEventListener('input',function(e){S.speed=+e.target.value;syncLabels();});
+$('sA').addEventListener('input',function(e){S.amp=+e.target.value;syncLabels();});
+$('cOwn').addEventListener('change',function(e){S.own=e.target.checked;});
+function setBranch(v){S.branch=v;if(v!=='both')S.focus=+v;[].forEach.call($('segB').children,function(bt){bt.className=(bt.getAttribute('data-b')===v)?'on':'';});size('C',ROWH*rows());changed();}
+$('segB').addEventListener('click',function(e){var b=e.target.getAttribute&&e.target.getAttribute('data-b');if(b!==null&&b!==undefined)setBranch(b);});
+function setPlay(v){S.playing=v;$('bPlay').textContent=v?'Pause':'Play';}
+$('bPlay').addEventListener('click',function(){setPlay(!S.playing);});
+$('bStep').addEventListener('click',function(){setPlay(false);S.t+=0.25;S.dirty=true;});
+$('bRestart').addEventListener('click',function(){S.t=0;S.dirty=true;});
+function tweenTo(to,dur){S.tween={from:S.kk,to:to,t0:performance.now(),dur:dur};}
+$('bK0').addEventListener('click',function(){var s=S.kk<0?-1:1;tweenTo(s*0.03,3500);});
+$('bK00').addEventListener('click',function(){S.tween=null;setK(0);});
+$('bKe').addEventListener('click',function(){S.tween=null;setK(S.kk<0?-1:1);});
+function preset(r,c1,c2){S.r=r;S.C1=c1;S.C2=c2;changed();}
+$('pEq').addEventListener('click',function(){preset(1,1,1);});
+$('p3').addEventListener('click',function(){preset(3,1,1);});
+$('p5').addEventListener('click',function(){preset(5,1,1);});
+$('pSp').addEventListener('click',function(){preset(1,1.6,0.4);});
+// plot interaction
+function plotPointer(key,e,down){
+  var cvs=cv[key],rect=cvs.getBoundingClientRect(),x=e.clientX-rect.left,y=e.clientY-rect.top,g=dim[key].geo;if(!g)return;
+  S.tween=null;
+  if(key==='D'){var kk=((x-g.L)/g.pw)*2-1;
+    var best=null,bd=1e9;[0,1].forEach(function(b){var d=Math.abs(g.Y(Core.omega(kk*PI,par(),b))-y);if(d<bd){bd=d;best=b;}});
+    if(down||bd<30)S.focus=best; if(S.branch!=='both'&&best!==+S.branch&&down){/* keep chosen branch */S.focus=+S.branch;}
+    setK(kk);}
+  else{var a=(x-g.L)/g.pw;setK((S.kk<0?-1:1)*Math.max(0,Math.min(1,a)));}
+}
+['D','R'].forEach(function(key){var cvs=cv[key],drag=false;
+  cvs.addEventListener('pointerdown',function(e){drag=true;try{cvs.setPointerCapture(e.pointerId);}catch(_){}plotPointer(key,e,true);});
+  cvs.addEventListener('pointermove',function(e){if(drag)plotPointer(key,e,false);});
+  cvs.addEventListener('pointerup',function(){drag=false;});cvs.addEventListener('pointercancel',function(){drag=false;});});
+
+/* ---------- main loop ---------- */
+var last=null;
+function frame(ts){
+  if(last===null)last=ts;var dt=Math.min(0.05,(ts-last)/1000);last=ts;
+  if(S.tween){var tw=S.tween,q=(performance.now()-tw.t0)/tw.dur;
+    if(q>=1){S.kk=tw.to;S.tween=null;}
+    else{var e=1-Math.pow(1-q,2),sg=tw.to<0?-1:1,f=Math.max(Math.abs(tw.from),1e-3),g=Math.max(Math.abs(tw.to),1e-3);
+      S.kk=sg*Math.exp(Math.log(f)+(Math.log(g)-Math.log(f))*e);}
+    changed();}
+  if(S.playing)S.t+=dt*S.speed;
+  if(S.dirty){drawDisp();drawRatio();S.dirty=false;}
+  drawChain();
+  requestAnimationFrame(frame);
+}
+document.addEventListener('visibilitychange',function(){last=null;});
+window.addEventListener('resize',resize);
+if(window.ResizeObserver){new ResizeObserver(function(){var w=cv.D.clientWidth;if(Math.abs(w-(dim.D?dim.D.w:0))>1||Math.abs(cv.C.clientWidth-(dim.C?dim.C.w:0))>1)resize();}).observe(document.body);}
+if(window.matchMedia){try{matchMedia('(prefers-color-scheme: dark)').addEventListener('change',function(){S.dirty=true;});}catch(_){}}
+buildTable();resize();changed();
+window.__viz={S:S,Core:Core,EV:EV,setK:setK,changed:changed};
+requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>

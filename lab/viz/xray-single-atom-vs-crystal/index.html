@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Viz · SSP L3 · Single atom vs crystal X-ray scattering</title>
+<style>
+:root{--bg:#fff;--fg:#1b1f24;--panel:#f4f6f8;--grid:#c5ccd6;--muted:#586373;--inc:#0072B2;--out:#D55E00;--ok:#009E73;--btn:#e6eaef;--btnfg:#1b1f24;--on:#0072B2;--onfg:#fff}
+@media (prefers-color-scheme:dark){:root{--bg:#14171c;--fg:#e8ebf0;--panel:#1d2128;--grid:#3b4350;--muted:#a0aab8;--inc:#56B4E9;--out:#F5A25D;--ok:#3FD0A5;--btn:#2a303a;--btnfg:#e8ebf0;--on:#56B4E9;--onfg:#0b1620}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.5 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+main{max-width:1100px;margin:0 auto;padding:14px 14px 40px}
+h1{font-size:1.35rem;margin:4px 0 2px}
+.q{color:var(--muted);margin:0 0 10px;font-size:1rem}
+.eqs{background:var(--panel);border-radius:10px;padding:8px 12px;display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:2px 14px;font-size:1rem}
+.eqs div{overflow-x:auto;padding:2px 0}
+.eqs .tag{color:var(--muted);font-size:.8rem;display:block}
+.views{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}
+@media (max-width:780px){.views{grid-template-columns:1fr}}
+.vw{background:var(--panel);border-radius:10px;padding:8px}
+.vw h2{font-size:.95rem;margin:0 0 4px}
+.cv{position:relative;width:100%;aspect-ratio:1/1}
+canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+.ctl{margin-top:10px;background:var(--panel);border-radius:10px;padding:10px 12px;display:grid;gap:10px}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.row label{font-size:.95rem;min-width:190px}
+.row input[type=range]{flex:1 1 200px;min-width:140px}
+button{font:inherit;font-size:.9rem;border:0;border-radius:8px;padding:6px 11px;background:var(--btn);color:var(--btnfg);cursor:pointer}
+button.on{background:var(--on);color:var(--onfg);font-weight:600}
+button:focus-visible,input:focus-visible{outline:2px solid var(--inc);outline-offset:2px}
+.grp{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.grp>span{font-size:.9rem;color:var(--muted);margin-right:2px}
+.read{margin-top:10px;display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:8px}
+.read div{background:var(--panel);border-radius:10px;padding:8px 12px}
+.read b{display:block;font-size:.8rem;color:var(--muted);font-weight:500}
+.read span{font-size:1.05rem;font-variant-numeric:tabular-nums}
+.regime{margin-top:10px;padding:9px 12px;border-left:4px solid var(--out);background:var(--panel);border-radius:6px}
+.tw{overflow-x:auto;margin-top:10px;background:var(--panel);border-radius:10px;padding:6px 10px}
+table{border-collapse:collapse;width:100%;font-size:.9rem;font-variant-numeric:tabular-nums}
+th,td{text-align:left;padding:3px 10px 3px 0;white-space:nowrap}
+th{color:var(--muted);font-weight:500;border-bottom:1px solid var(--grid)}
+h3{font-size:1rem;margin:16px 0 4px}
+ul{margin:4px 0;padding-left:20px}
+details{margin-top:12px;background:var(--panel);border-radius:10px;padding:8px 12px}
+summary{cursor:pointer;font-weight:600}
+.sw{display:inline-block;width:12px;height:12px;border-radius:3px;vertical-align:-1px;margin:0 3px 0 8px}
+math{font-size:1.08em}
+.gro{margin-top:10px;background:var(--panel);border-radius:10px;padding:8px 12px;border-left:4px solid var(--ok)}
+.gro .gr{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:4px 14px;margin-top:6px;font-variant-numeric:tabular-nums}
+.gro .gr div b{color:var(--muted);font-weight:500;font-size:.8rem;display:block}
+.gro .note{color:var(--muted);font-size:.85rem;margin-top:6px}
+tr.sel td{background:rgba(0,158,115,.16)}
+tbody tr[data-k]{cursor:pointer}
+</style>
+</head>
+<body>
+<script src="../lab-back.js" defer></script><!-- added for louisvrh.github.io/lab: back link -->
+<main>
+<h1>Single atom vs crystal: X-ray elastic scattering</h1>
+<p class="q">Why does one atom scatter in every direction, while a lattice of atoms scatters only into a few sharp beams?</p>
+
+<div class="eqs" aria-label="Governing equations">
+  <div><span class="tag">elastic</span><span class="tex" data-tex="|\mathbf k_{in}|=|\mathbf k_{out}|,\quad \mathbf q\equiv\mathbf k_{out}-\mathbf k_{in}">|k_in| = |k_out|, q = k_out − k_in</span></div>
+  <div><span class="tag">amplitude and intensity from N&times;N atoms</span><span class="tex" data-tex="I(\mathbf q)\propto\Big|\sum_{\mathbf R}e^{-i\mathbf q\cdot\mathbf R}\Big|^2">I(q) ∝ |Σ_R e^{−i q·R}|²</span></div>
+  <div><span class="tag">Laue condition</span><span class="tex" data-tex="\mathbf q=\mathbf G=h_1\mathbf b_1+h_2\mathbf b_2">q = G = h₁b₁ + h₂b₂</span></div>
+  <div><span class="tag">combined (Ewald circle)</span><span class="tex" data-tex="2\mathbf k_{in}\cdot\mathbf G+\mathbf G^2=0">2 k_in·G + G² = 0</span></div>
+  <div><span class="tag">Bragg's law</span><span class="tex" data-tex="2d\sin\theta=n\lambda">2d sinθ = nλ</span></div>
+</div>
+
+<div class="views">
+  <div class="vw"><h2>Real space: the crystal and the scattered intensity I(direction of k<sub>out</sub>)</h2>
+    <div class="cv" id="cvA"><canvas id="A" role="img" aria-label="Real-space picture of the crystal, incident beam and polar plot of scattered intensity"></canvas></div></div>
+  <div class="vw"><h2>Reciprocal space: lattice G and Ewald circle (radius |k<sub>in</sub>|)</h2>
+    <div class="cv" id="cvB"><canvas id="B" role="img" aria-label="Reciprocal lattice with Ewald circle and incident wavevector"></canvas></div></div>
+</div>
+
+<div class="ctl">
+  <div class="grp"><span>structure:</span><span id="stBtns" style="display:inline-flex;gap:6px;flex-wrap:wrap"></span></div>
+  <div class="row" id="rowP" style="display:none"><label>crystalline fraction p = <b id="pfV"></b></label><input id="pf" type="range" min="0" max="100" step="1" value="70" aria-label="Crystalline fraction"></div>
+  <div class="row" id="rowS" style="display:none"><label>thermal displacement &sigma; = <b id="sgV"></b></label><input id="sg" type="range" min="0" max="0.3" step="0.005" value="0.08" aria-label="Thermal displacement sigma"></div>
+  <div class="row" id="rowTx" style="display:none"><label>basis offset &tau;<sub>x</sub> = <b id="txV"></b></label><input id="tx" type="range" min="0" max="1" step="0.01" value="0.5" aria-label="tau x"></div>
+  <div class="row" id="rowTy" style="display:none"><label>basis offset &tau;<sub>y</sub> = <b id="tyV"></b></label><input id="ty" type="range" min="0" max="1" step="0.01" value="0.5" aria-label="tau y"></div>
+  <div class="row" id="rowR" style="display:none"><label>f<sub>2</sub>/f<sub>1</sub> = <b id="rhoV"></b></label><input id="rho" type="range" min="0" max="1" step="0.01" value="1" aria-label="Relative scattering strength"></div>
+  <div class="grp" id="rowB" style="display:none"><button id="reshuf">Reshuffle (new random seed)</button><button id="tauBC">Body centre: &tau; = (&frac12;,&frac12;)a, f<sub>2</sub> = f<sub>1</sub></button></div>
+  <div class="row"><label>direction of k<sub>in</sub>: &phi; = <b id="phiV"></b></label><input id="phi" type="range" min="0" max="360" step="0.1" value="11.3" aria-label="Incident angle"></div>
+  <div class="row"><label>size: |k<sub>in</sub>| = <b id="KV"></b></label><input id="K" type="range" min="0.3" max="6" step="0.01" value="5.1" aria-label="Magnitude of incident wavevector"></div>
+  <div class="grp"><span>atoms per side N:</span><span id="Ns"></span></div>
+  <div class="grp"><span>presets:</span>
+    <button id="p36">Fig 3.6: k<sub>in</sub> = (&pi;/a)(5,1)</button>
+    <button id="pLong">&lambda; &gt;&gt; a (|k<sub>in</sub>| = 0.6 &pi;/a)</button>
+    <button id="pMid">&lambda; ~ a (|k<sub>in</sub>| = 3 &pi;/a)</button></div>
+  <div class="grp"><span>snap to a Bragg condition:</span>
+    <button id="snK">nearest |k<sub>in</sub>|</button><button id="snP">nearest angle</button></div>
+  <div class="grp"><button id="play">Rotate k<sub>in</sub> &#9654;</button><button id="step">Step +1&deg;</button><button id="reset">Reset</button>
+    <label style="font-size:.9rem">speed <input id="spd" type="range" min="2" max="60" value="12" style="width:110px;vertical-align:middle" aria-label="Rotation speed"> <span id="spdV"></span></label>
+    <label style="font-size:.9rem"><input type="checkbox" id="log"> log intensity (6 decades)</label></div>
+  <div class="grp"><span>overlay:</span><button id="ovT" class="on" aria-pressed="true">G triangle + Bragg planes: on</button><span style="font-size:.85rem">active beam: click a beam in the real-space panel, a table row, or a button below</span></div>
+</div>
+
+<div class="read">
+  <div><b>k<sub>in</sub> (units &pi;/a)</b><span id="rK"></span></div>
+  <div><b>|k<sub>in</sub>| in units of 2&pi;/a</b><span id="rK2"></span></div>
+  <div><b>&lambda; / a = 2&pi;/(|k<sub>in</sub>| a)</b><span id="rL"></span></div>
+  <div><b>peak width &Delta;q &asymp; 2&pi;/(Na)</b><span id="rW"></span></div>
+</div>
+<div class="regime" id="regime"></div>
+<div class="gro" id="str" style="display:none;border-left-color:var(--out)"></div>
+<div class="gro" id="gro"></div>
+<div class="tw"><table><thead><tr id="thr"><th>beam (h&#8321;,h&#8322;)</th><th>deflection 2&theta;</th><th>k<sub>out</sub> direction</th><th>peak I / N&#8308;</th><th>Bragg planes (hkl-type), n, d, &theta;<sub>B</sub></th></tr></thead><tbody id="tb"></tbody></table></div>
+
+<h3>What to notice</h3>
+<ul>
+<li>N = 1: the scattered intensity is a perfect circle, so every k<sub>out</sub> is allowed and q is unconstrained. Raise N and the circle collapses into discrete spikes of width about 2&pi;/(Na).</li>
+<li>Beams exist only where a reciprocal-lattice point sits on the Ewald circle (2k<sub>in</sub>&middot;G + G&sup2; = 0). Rotate k<sub>in</sub> or change |k<sub>in</sub>| and beams switch on and off as the circle sweeps through points; for large N use the snap buttons or the Fig 3.6 preset to land exactly on them.</li>
+<li>For |k<sub>in</sub>| &lt; &pi;/a (&lambda; &gt; 2a) the circle is too small to reach any G &ne; 0, so only the forward beam survives. The first Bragg beam appears at &lambda; = 2a (back-scattering, 2&theta; = 180&deg;).</li>
+<li>Switch on the overlay: place k<sub>in</sub>, then G at its tip. The arrow tip lands on the tip of k<sub>out</sub> only for beams that satisfy 2k<sub>in</sub>·G + G² = 0, and the Bragg planes drawn normal to G make equal angles &theta; with k<sub>in</sub> and k<sub>out</sub>.</li>
+<li>With the overlay on, the ringed atoms are one Bragg plane of the active beam (step m with &#9664; &#9654; or click inside the crystal). They all scatter in phase for specular reflection, and neighbouring planes then add in phase when 2d sin&theta; = N&lambda;. Switch on &ldquo;colour all planes&rdquo; to see every atom belongs to exactly one plane of the family.</li>
+<li>Structure selector: semicrystalline (a fraction p ordered) keeps the Bragg peaks at the same angles with intensity p², on top of a diffuse background from the random atoms and the vacancies they leave; fully amorphous gives only a broad halo near |q| &asymp; 2&pi;/(nearest-neighbour distance), roughly 6 to 9 per a here; a basis atom at &tau; = (&frac12;,&frac12;)a with f<sub>2</sub> = f<sub>1</sub> cancels (1,0)-type beams exactly and quadruples (1,1)-type ones.</li>
+</ul>
+
+<details><summary>Model and assumptions</summary>
+<p>Point-like identical atoms (form factor constant) on an N&times;N square lattice, lattice constant a = 1; single scattering from each atom (kinematic, no absorption or multiple scattering); plane-wave incident beam; far-field (Fraunhofer) detection; 2D scattering plane. The intensity is the exact closed form of the double sum, I/N&#8308; = [sin(Nq<sub>x</sub>a/2)/(N sin(q<sub>x</sub>a/2))]&sup2; [sin(Nq<sub>y</sub>a/2)/(N sin(q<sub>y</sub>a/2))]&sup2;, with q = k<sub>out</sub> &minus; k<sub>in</sub> and |k<sub>out</sub>| = |k<sub>in</sub>| (no time stepping is involved). The core was checked against the brute-force sum over all N&sup2; atoms.</p>
+<p>The reciprocal-space circle is the locus of allowed q = k<sub>out</sub> &minus; k<sub>in</sub>; its brightness shows I. Beams in the table are lattice points within the finite-size peak (|&delta;q| &lt; 2&pi;/(Na) per axis) of the circle, with peak intensity relative to the exact-Bragg value. At exact Bragg conditions for G = n(h&#8321;&#8217;,h&#8322;&#8217;) the table gives the plane spacing d = a/&radic;(h&#8321;&#8217;&sup2;+h&#8322;&#8217;&sup2;) and 2d sin&theta; = n&lambda;. Fig 3.6 gives 8 points on the circle: 7 deflected beams plus the undeflected forward beam (G = 0).</p>
+<p>G-triangle overlay: wavevectors are not real-space displacements. They are drawn from the crystal centre with their true directions and one shared length scale (px per 2&pi;/a, printed on the panel, set so that |k<sub>in</sub>| fills about 60% of the panel radius). Bragg planes are the lines (p<sub>1</sub>,p<sub>2</sub>)&middot;r = integer (with the half-integer offset for even N) where (p<sub>1</sub>,p<sub>2</sub>) = (h<sub>1</sub>,h<sub>2</sub>)/n, spacing d = a/&radic;(p<sub>1</sub>&sup2;+p<sub>2</sub>&sup2;) = 2&pi;/|g|, drawn only while d is at least 3 px. For a detuned beam (peak within the finite-size width but not exactly on the circle) k<sub>out</sub> keeps length |k<sub>in</sub>| in the direction of k<sub>in</sub> + G, and the leftover gap is drawn dotted.</p>
+<p>Structure modes: intensity is the direct sum I(q) = |&Sigma;<sub>j</sub> f<sub>j</sub> e<sup>-iq&middot;r<sub>j</sub></sup>|&sup2; over the actual atom positions, on a 1/6&deg; angular grid, normalised by (&Sigma;f)&sup2; for the plot and by N<sub>s</sub>&sup2; (N<sub>s</sub> = N&sup2; lattice sites) for the readouts. The perfect crystal still uses the closed form (identical to the direct sum to 1e-12). N is capped at 30 in the other modes. Semicrystalline: a fixed random subset of round(pN<sub>s</sub>) sites stay on the lattice; the others move to uniform random positions inside the N&times;N area (seeded, Reshuffle changes the seed). The expected diffuse level is (1&minus;p&sup2;)N<sub>s</sub>, because the vacancies also scatter diffusely, not just (1&minus;p)N<sub>s</sub>. Amorphous: uniform random start, then overlapping pairs are pushed apart until all separations are at least 0.8a (same density as the lattice, so jammed-fluid-like); it has excluded-volume short-range order only. Thermal: Gaussian displacement &sigma; per axis, giving e<sup>&minus;q&sup2;&sigma;&sup2;</sup> on the coherent peak. Basis: second atom at R + &tau; with relative strength f<sub>2</sub>/f<sub>1</sub>. The G-plane overlay uses only the lattice-site atoms (ordered ones in the semicrystalline mode) and is hidden for the amorphous structure. Background is the mean intensity over directions more than 4 peak widths from any beam.</p>
+<p>Peak (Laue) widths shrink as 1/N, so for N = 40 a tiny detuning from the Bragg condition kills the beam, which is why a real crystal is rotated or a range of wavelengths is used.</p></details>
+</main>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
+<script src="core.js"></script>
+<script>
+(function(){
+const PI=Math.PI, DEG=PI/180;
+const S={K:Math.hypot(5,1), phi:Math.atan2(1,5)/DEG, N:10, log:false, playing:false, speed:12, ov:true, sel:null, m:0, mKey:null, col:false, fam:null, mode:'perfect', p:0.7, sg:0.08, tx:0.5, ty:0.5, rho:1, seed:1, st:null, stKey:null};
+const $=id=>document.getElementById(id);
+const NS=[1,2,3,5,10,20,40];
+let dirty=true;
+
+// equations (KaTeX as MathML so no stylesheet is needed; plain-text fallback stays if KaTeX is unavailable)
+try{ if(window.katex) document.querySelectorAll('.tex').forEach(e=>{ try{ katex.render(e.dataset.tex,e,{output:'mathml',throwOnError:true,displayMode:false}); }catch(x){} }); }catch(x){}
+
+const nb=$('Ns');
+NS.forEach(n=>{ const b=document.createElement('button'); b.textContent=n; b.dataset.n=n; b.title=n===1?'single atom':n+'×'+n+' atoms'; b.onclick=()=>{ if(S.mode!=='perfect'&&n>30) return; S.N=n;sync();}; nb.appendChild(b); });
+nb.style.display='inline-flex'; nb.style.gap='6px'; nb.style.flexWrap='wrap';
+
+function norm360(p){ return ((p%360)+360)%360; }
+$('phi').oninput=e=>{S.phi=+e.target.value; sync(true);};
+$('K').oninput=e=>{S.K=+e.target.value; sync(true);};
+$('spd').oninput=e=>{S.speed=+e.target.value; $('spdV').textContent=S.speed+'°/s';};
+$('ovT').onclick=()=>{S.ov=!S.ov; $('ovT').classList.toggle('on',S.ov); $('ovT').setAttribute('aria-pressed',S.ov); $('ovT').textContent='G triangle + Bragg planes: '+(S.ov?'on':'off'); dirty=true;};
+const MODES=[['perfect','Perfect crystal'],['semi','Semicrystalline (polymer-like)'],['amorph','Amorphous'],['thermal','Crystal + thermal disorder'],['basis','Crystal + basis']];
+const sb=$('stBtns'); MODES.forEach(m=>{ const b=document.createElement('button'); b.textContent=m[1]; b.dataset.mode=m[0]; b.onclick=()=>setMode(m[0]); sb.appendChild(b); });
+function setMode(m){ S.mode=m; S.log=(m!=='perfect'); $('log').checked=S.log; if(m!=='perfect'&&S.N>30) S.N=20; S.sel=null; S.mKey=null; sync(); }
+$('pf').oninput=e=>{S.p=+e.target.value/100; sync(true);};
+$('sg').oninput=e=>{S.sg=+e.target.value; sync(true);};
+$('tx').oninput=e=>{S.tx=+e.target.value; sync(true);};
+$('ty').oninput=e=>{S.ty=+e.target.value; sync(true);};
+$('rho').oninput=e=>{S.rho=+e.target.value; sync(true);};
+$('reshuf').onclick=()=>{S.seed++; sync(true);};
+$('tauBC').onclick=()=>{S.tx=0.5;S.ty=0.5;S.rho=1;$('tx').value=0.5;$('ty').value=0.5;$('rho').value=1; sync(true);};
+function getStruct(){ if(S.mode==='perfect') return null; const key=[S.mode,S.N,S.p,S.sg,S.tx,S.ty,S.rho,S.seed].join('|');
+  if(key!==S.stKey){ S.st=Core.makeStructure(S.mode,S.N,{p:S.p,sigma:S.sg,tx:S.tx,ty:S.ty,rho:S.rho},S.seed); S.stKey=key; } return S.st; }
+$('log').onchange=e=>{S.log=e.target.checked; dirty=true;};
+$('p36').onclick=()=>{S.K=Math.hypot(5,1);S.phi=Math.atan2(1,5)/DEG;sync();};
+$('pLong').onclick=()=>{S.K=0.6;S.phi=20;sync();};
+$('pMid').onclick=()=>{S.K=3;S.phi=20;sync();};
+$('snK').onclick=()=>{const s=Core.snapK(S.K,S.phi); if(s){S.K=s.K;sync();}};
+$('snP').onclick=()=>{const s=Core.snapPhi(S.K,S.phi); if(s){S.phi=s.phi;sync();}};
+$('play').onclick=()=>{S.playing=!S.playing; sync();};
+$('step').onclick=()=>{S.playing=false;S.phi=norm360(S.phi+1);sync();};
+$('reset').onclick=()=>{S.K=Math.hypot(5,1);S.phi=Math.atan2(1,5)/DEG;S.N=10;S.log=false;S.playing=false;S.sel=null;S.m=0;S.col=false;S.mode='perfect';S.p=0.7;S.sg=0.08;S.tx=0.5;S.ty=0.5;S.rho=1;S.seed=1;$('pf').value=70;$('sg').value=0.08;$('tx').value=0.5;$('ty').value=0.5;$('rho').value=1;$('log').checked=false;sync();};
+
+function sync(fromSlider){
+  S.phi=norm360(S.phi);
+  if(!fromSlider){ $('phi').value=S.phi; $('K').value=S.K; }
+  $('phiV').textContent=S.phi.toFixed(1)+'°';
+  $('KV').textContent=S.K.toFixed(2)+' π/a';
+  $('spdV').textContent=S.speed+'°/s';
+  $('play').innerHTML=S.playing?'Pause &#10074;&#10074;':'Rotate k<sub>in</sub> &#9654;';
+  nb.querySelectorAll('button').forEach(b=>b.classList.toggle('on',+b.dataset.n===S.N));
+  $('pfV').textContent=Math.round(S.p*100)+'%'; $('sgV').textContent=S.sg.toFixed(3)+' a'; $('txV').textContent=S.tx.toFixed(2)+' a'; $('tyV').textContent=S.ty.toFixed(2)+' a'; $('rhoV').textContent=S.rho.toFixed(2);
+  const md=S.mode, show=(id,on)=>{ $(id).style.display=on?'':'none'; };
+  show('rowP',md==='semi'); show('rowS',md==='thermal'); show('rowTx',md==='basis'); show('rowTy',md==='basis'); show('rowR',md==='basis'); show('rowB',md!=='perfect');
+  $('reshuf').style.display=(md==='basis')?'none':''; $('tauBC').style.display=(md==='basis')?'':'none';
+  sb.querySelectorAll('button').forEach(b=>b.classList.toggle('on',b.dataset.mode===md));
+  nb.querySelectorAll('button').forEach(b=>{ const dis=(md!=='perfect'&&+b.dataset.n>30); b.disabled=dis; b.style.opacity=dis?0.4:1; if(dis) b.title='N is capped at 30 for the direct sum over atom positions'; });
+  $('log').checked=S.log;
+  dirty=true;
+}
+
+// ---------- canvases ----------
+const cvs={A:$('A'),B:$('B')}, ctx={}, size={};
+function fit(){ for(const k in cvs){ const c=cvs[k], r=c.parentElement.getBoundingClientRect(), d=window.devicePixelRatio||1;
+  c.width=Math.max(10,Math.round(r.width*d)); c.height=Math.max(10,Math.round(r.height*d)); ctx[k]=c.getContext('2d'); ctx[k].setTransform(d,0,0,d,0,0); size[k]=r.width; } dirty=true; }
+window.addEventListener('resize',fit);
+if(window.ResizeObserver){ new ResizeObserver(fit).observe($('cvA')); new ResizeObserver(fit).observe($('cvB')); }
+
+function css(n){ return getComputedStyle(document.documentElement).getPropertyValue(n).trim(); }
+function arrow(g,x0,y0,x1,y1,col,w,head){ const a=Math.atan2(y1-y0,x1-x0); g.strokeStyle=col;g.fillStyle=col;g.lineWidth=w;
+  g.beginPath();g.moveTo(x0,y0);g.lineTo(x1-Math.cos(a)*head*0.7,y1-Math.sin(a)*head*0.7);g.stroke();
+  g.beginPath();g.moveTo(x1,y1);g.lineTo(x1-head*Math.cos(a-0.4),y1-head*Math.sin(a-0.4));g.lineTo(x1-head*Math.cos(a+0.4),y1-head*Math.sin(a+0.4));g.closePath();g.fill(); }
+function label(g,t,x,y,col,al){ g.fillStyle=col; g.textAlign=al||'center'; g.textBaseline='middle'; g.fillText(t,x,y); }
+function mapF(f){ if(!S.log) return f; const v=(Math.log10(Math.max(f,1e-12))+6)/6; return v<0?0:v; }
+
+let M=5760;
+function draw(){
+  const C={fg:css('--fg'),grid:css('--grid'),muted:css('--muted'),panel:css('--panel'),inc:css('--inc'),out:css('--out')};
+  const N=S.N,K=S.K,phi=S.phi, st=getStruct();
+  const P=st?Core.polarDirect(st,K,phi,2160):Core.polar(N,K,phi,5760); M=P.f.length; S.P=P;
+  const beams=(N>1&&S.mode!=='amorph')?Core.visibleBeams(N,K,phi,0.05):[];
+  if(S.mode==='basis') beams.forEach(b=>{ b.F=Core.structFactor(b.h1,b.h2,S.tx,S.ty,S.rho); b.W=b.F*b.F; });
+  const ob=(S.ov&&N>1)?Core.pickBeam(beams,S.sel):null; S.shown=ob;
+  if(ob){ const key=ob.h1+','+ob.h2+'|'+N; if(key!==S.mKey){S.mKey=key;S.m=0;} S.fam=Core.planeFamily(ob.p1,ob.p2,N); S.m=nearestM(S.fam,S.m); } else S.fam=null;
+  drawReal(C,N,K,phi,P,beams,ob); drawRecip(C,N,K,phi,P,beams,ob); readouts(N,K,phi,beams,ob);
+}
+
+function drawReal(C,N,K,phi,P,beams,ob){
+  const g=ctx.A, s=size.A; if(!g||s<120)return; g.clearRect(0,0,s,s); g.font='13px system-ui,sans-serif';
+  const cx=s/2, cy=s/2, R=s/2-44, Bx=0.22*s, ad=Math.min(26,Bx/Math.max(N-1,1)), L=(N-1)*ad;
+  const md=S.mode, ext=(md==='semi'||md==='amorph')?0.71*ad:(md==='thermal'?3*S.sg*ad:(md==='basis'?Math.hypot(S.tx,S.ty)*ad:0)), r0=Math.max(L*0.7072+12+ext,24), ph=phi*DEG, ux=Math.cos(ph), uy=-Math.sin(ph);
+  // incident wavefronts at the true spacing lambda = 2a/K in the drawn units
+  const lam=2*ad/K;
+  if(lam>=4){ g.strokeStyle=C.inc; g.globalAlpha=0.28; g.lineWidth=1; g.save(); g.beginPath(); g.arc(cx,cy,R+6,0,2*PI); g.clip();
+    for(let m=0;m*lam<R+6;m++){ const u=-(r0+8)-m*lam; if(u<-(R+6))break; const px=cx+ux*u, py=cy+uy*u; g.beginPath(); g.moveTo(px-uy*R*1.2,py+ux*R*1.2); g.lineTo(px+uy*R*1.2,py-ux*R*1.2); g.stroke(); }
+    g.restore(); g.globalAlpha=1; }
+  // reference circles
+  g.strokeStyle=C.grid; g.lineWidth=1; g.setLineDash([4,4]); g.beginPath(); g.arc(cx,cy,r0,0,2*PI); g.stroke(); g.beginPath(); g.arc(cx,cy,R,0,2*PI); g.stroke(); g.setLineDash([]);
+  // polar plot of scattered intensity
+  g.beginPath();
+  for(let i=0;i<=M;i++){ const j=i%M, th=P.theta[j], rho=r0+(R-r0)*mapF(P.f[j]); const x=cx+rho*Math.cos(th), y=cy-rho*Math.sin(th); if(i===0)g.moveTo(x,y); else g.lineTo(x,y); }
+  g.closePath(); g.globalAlpha=0.22; g.fillStyle=C.out; g.fill(); g.globalAlpha=1; g.fillStyle=C.panel; g.beginPath(); g.arc(cx,cy,r0,0,2*PI); g.fill(); g.strokeStyle=C.out; g.lineWidth=2; g.lineJoin='round'; g.stroke();
+  g.strokeStyle=C.grid; g.lineWidth=1; g.setLineDash([4,4]); g.beginPath(); g.arc(cx,cy,r0,0,2*PI); g.stroke(); g.setLineDash([]);
+  // amorphous: local average of the speckle pattern (dashed) shows the broad halo
+  if(md==='amorph'&&N>1&&S.P){ const f=S.P.f, w=Math.max(2,Math.round(M/360*3)); g.save(); g.strokeStyle=C.fg; g.lineWidth=2; g.setLineDash([6,4]); g.beginPath();
+    for(let i=0;i<=M;i++){ let a=0; for(let d=-w;d<=w;d++) a+=f[(i+d+M*4)%M]; a/=(2*w+1); const rho=r0+(R-r0)*mapF(a), th=S.P.theta[i%M]; const x=cx+rho*Math.cos(th), y=cy-rho*Math.sin(th); if(i===0)g.moveTo(x,y); else g.lineTo(x,y); }
+    g.stroke(); g.restore(); }
+  // crystal
+  const rad=Math.max(1.3,Math.min(6,ad*0.28)); g.fillStyle=C.fg;
+  if(md==='perfect'||!S.st){ for(let i=0;i<N;i++)for(let j=0;j<N;j++){ g.beginPath(); g.arc(cx+(i-(N-1)/2)*ad, cy+(j-(N-1)/2)*ad, N===1?7:rad,0,2*PI); g.fill(); } }
+  else { const st=S.st, rr=N===1?7:rad;
+    for(let a=0;a<st.n;a++){ const x=cx+st.x[a]*ad, y=cy-st.y[a]*ad, k=st.kind[a]; g.beginPath();
+      if(k===2){ g.arc(x,y,rr*(0.55+0.45*st.f[a])+0.5,0,2*PI); g.fillStyle=C.panel; g.fill(); g.strokeStyle='#E69F00'; g.lineWidth=Math.max(1.3,rr*0.5); g.stroke(); }
+      else { g.arc(x,y,rr,0,2*PI); g.fillStyle=(k===1)?'#CC79A7':C.fg; g.fill(); } }
+    g.fillStyle=C.fg; }
+  // incident beam
+  arrow(g,cx+ux*(-R+6),cy+uy*(-R+6),cx+ux*(-r0-4),cy+uy*(-r0-4),C.inc,3,11);
+  label(g,'k_in',cx+ux*(-R+6)-uy*16,cy+uy*(-R+6)+ux*16,C.inc);
+  // beam rays and labels
+  g.lineWidth=1; g.setLineDash([3,4]); const forward=[{h1:0,h2:0,dirRad:ph}].concat(beams);
+  forward.forEach(b=>{ const dx=Math.cos(b.dirRad), dy=-Math.sin(b.dirRad); g.strokeStyle=C.out; g.globalAlpha=0.5; g.beginPath(); g.moveTo(cx+dx*r0,cy+dy*r0); g.lineTo(cx+dx*(R+3),cy+dy*(R+3)); g.stroke(); g.globalAlpha=1;
+    if(N>1){ g.font='13px system-ui,sans-serif'; label(g,'('+b.h1+','+b.h2+')',cx+dx*(R+17),cy+dy*(R+17),C.fg);} });
+  g.setLineDash([]); g.font='13px system-ui,sans-serif';
+  if(N===1) label(g,'single atom: isotropic, every k_out allowed',s/2,16,C.out);
+  else label(g,'outer circle = full beam intensity '+(S.log?'(log scale)':'(linear)'),s/2,s-10,C.muted);
+  S.geo={cx:cx,cy:cy,r0:r0};
+  if(S.ov&&N>1&&md!=='amorph') drawOverlay(g,C,s,N,K,phi,ob,cx,cy,r0,R,ad);
+}
+
+function arc(g,x,y,r,a0,a1){ let d=a1-a0; while(d>PI)d-=2*PI; while(d<=-PI)d+=2*PI; g.beginPath(); g.arc(x,y,r,a0,a0+d,d<0); g.stroke(); return a0+d/2; }
+function nearestM(fam,m){ if(fam.counts[m]) return m; for(let d=1;d<=fam.mmax-fam.mmin+1;d++){ if(fam.counts[m+d]) return m+d; if(fam.counts[m-d]) return m-d; } return 0; }
+function stepM(dir){ const fam=S.fam; if(!fam) return; let m=S.m+dir; while(m>=fam.mmin&&m<=fam.mmax&&!fam.counts[m]) m+=dir; if(m>=fam.mmin&&m<=fam.mmax){ S.m=m; dirty=true; } }
+const PCOL=['#CC79A7','#E69F00','#7A5BD6'];
+function drawOverlay(g,C,s,N,K,phi,ob,cx,cy,r0,R,ad){
+  g.save(); g.font='12.5px system-ui,sans-serif';
+  if(!ob){ label(g,'no G satisfies 2k_in·G + G² = 0 here',s/2,16,C.ok); g.restore(); return; }
+  const pxU=0.62*R/(K/2), ov=Core.overlay(ob,K,phi,pxU,ad,N); S.ovGeo=ov; S.ovAd=ad;
+  const Rc=Math.min(R,r0+0.18*(R-r0)+30);
+  // Bragg planes (faint), normal to G, spacing d = 2pi/|g|, through atoms
+  const fam=S.fam, pm=S.m, c0=(N-1)/2, rad=Math.max(1.3,Math.min(6,ad*0.28));
+  const segAt=(s,h)=>[cx+ov.n[0]*s-ov.t[0]*h,cy+ov.n[1]*s-ov.t[1]*h,cx+ov.n[0]*s+ov.t[0]*h,cy+ov.n[1]*s+ov.t[1]*h];
+  const planeLine=(m,col,w,al)=>{ const s=Core.planeOffsetPx(fam,ob.p1,ob.p2,N,m,ad); if(Math.abs(s)>=Rc) return; const q=segAt(s,Math.sqrt(Rc*Rc-s*s)); g.strokeStyle=col; g.lineWidth=w; g.globalAlpha=al; g.beginPath(); g.moveTo(q[0],q[1]); g.lineTo(q[2],q[3]); g.stroke(); };
+  if(ov.spacingPx>=3){ g.save(); g.beginPath(); g.arc(cx,cy,Rc,0,2*PI); g.clip();
+    if(S.col){ for(let m=fam.mmin;m<=fam.mmax;m++) if(fam.counts[m]) planeLine(m,PCOL[((fam.v0+m)%3+3)%3],1.6,0.8); }
+    else { g.strokeStyle=C.ok; g.globalAlpha=0.38; g.lineWidth=1; Core.planeSegs(ov,Rc).forEach(p=>{ g.beginPath(); g.moveTo(cx+p.seg[0],cy+p.seg[1]); g.lineTo(cx+p.seg[2],cy+p.seg[3]); g.stroke(); }); }
+    planeLine(pm,C.ok,3,1); g.restore(); }
+  g.globalAlpha=1;
+  // atoms: optional per-plane colours, then the selected plane's atoms ringed and filled
+  const hl=Core.atomsOnPlane(fam,pm).filter(a=>S.mode!=='semi'||(S.st&&S.st.ord[a.i*N+a.j]===1)); S.hl=hl;
+  const stx=(S.mode==='perfect')?null:S.st;
+  const ap=a=>{ if(stx&&S.mode==='thermal'){ const s=a.i*N+a.j; return [cx+stx.sx[s]*ad, cy-stx.sy[s]*ad]; } return [cx+(a.i-c0)*ad, cy-(a.j-c0)*ad]; };
+  const isOrd=a=>!(stx&&S.mode==='semi')||stx.ord[a.i*N+a.j]===1;
+  if(S.col) fam.atoms.filter(isOrd).forEach(a=>{ const p=ap(a); g.fillStyle=PCOL[((a.v%3)+3)%3]; g.beginPath(); g.arc(p[0],p[1],rad+1.2,0,2*PI); g.fill(); });
+  hl.forEach(a=>{ const p=ap(a); if(!S.col){ g.fillStyle=C.ok; g.beginPath(); g.arc(p[0],p[1],rad+1,0,2*PI); g.fill(); }
+    g.strokeStyle=C.ok; g.lineWidth=2.5; g.beginPath(); g.arc(p[0],p[1],rad+3.5,0,2*PI); g.stroke(); g.strokeStyle=C.fg; g.lineWidth=1; g.beginPath(); g.arc(p[0],p[1],rad+5.2,0,2*PI); g.stroke(); });
+  // reference plane through the vector origin
+  const tl=Math.hypot(ov.kin[0],ov.kin[1])*1.05; g.strokeStyle=C.ok; g.lineWidth=1.5; g.setLineDash([6,4]); g.globalAlpha=0.9;
+  g.beginPath(); g.moveTo(cx-ov.t[0]*tl,cy-ov.t[1]*tl); g.lineTo(cx+ov.t[0]*tl,cy+ov.t[1]*tl); g.stroke(); g.setLineDash([]); g.globalAlpha=1;
+  // angles theta between plane and k_in / k_out
+  let tt=ov.t; if(ov.kin[0]*tt[0]+ov.kin[1]*tt[1]<0) tt=[-tt[0],-tt[1]];
+  const at=Math.atan2(tt[1],tt[0]), ai=Math.atan2(ov.kin[1],ov.kin[0]), ao=Math.atan2(ov.kout[1],ov.kout[0]), ar=0.26*tl;
+  g.lineWidth=2; g.strokeStyle=C.inc; let m1=arc(g,cx,cy,ar,at,ai); g.strokeStyle=C.out; let m2=arc(g,cx,cy,ar*1.0,at,ao);
+  g.font='12.5px system-ui,sans-serif'; label(g,'θ',cx+Math.cos(m1)*(ar+10),cy+Math.sin(m1)*(ar+10),C.inc); label(g,'θ',cx+Math.cos(m2)*(ar+10),cy+Math.sin(m2)*(ar+10),C.out);
+  // vector triangle: k_in (blue), then G (green) from its tip, ending on the tip of k_out (orange) drawn from the same origin
+  const ox=cx,oy=cy, k1=[ox+ov.kin[0],oy+ov.kin[1]], k2=[ox+ov.tipG[0],oy+ov.tipG[1]], ko=[ox+ov.kout[0],oy+ov.kout[1]];
+  arrow(g,ox,oy,ko[0],ko[1],C.out,3.5,11);
+  arrow(g,ox,oy,k1[0],k1[1],C.inc,3.5,11);
+  arrow(g,k1[0],k1[1],k2[0],k2[1],C.ok,3.5,11);
+  if(Math.hypot(ov.gap[0],ov.gap[1])>0.5){ g.strokeStyle=C.fg; g.lineWidth=1.5; g.setLineDash([2,3]); g.beginPath(); g.moveTo(k2[0],k2[1]); g.lineTo(ko[0],ko[1]); g.stroke(); g.setLineDash([]); }
+  g.fillStyle=C.fg; g.beginPath(); g.arc(ox,oy,3.5,0,2*PI); g.fill();
+  const cen=[(ox+k1[0]+ko[0])/3,(oy+k1[1]+ko[1])/3];
+  function lab(t,a,b,col){ const mx=(a[0]+b[0])/2,my=(a[1]+b[1])/2; let dx=mx-cen[0],dy=my-cen[1]; const dl=Math.hypot(dx,dy)||1; label(g,t,mx+dx/dl*16,my+dy/dl*16,col); }
+  g.font='bold 13px system-ui,sans-serif';
+  lab('k_in',[ox,oy],k1,C.inc); lab('G',k1,k2,C.ok); lab('k_out',[ox,oy],ko,C.out);
+  // scale and honesty note
+  g.font='12.5px system-ui,sans-serif'; g.textAlign='left';
+  ['wavevectors drawn in','real space as directions;','length scale:','1 × 2π/a = '+pxU.toFixed(0)+' px','(a = '+ad.toFixed(0)+' px)'].forEach((t,i)=>label(g,t,8,12+i*15,C.muted,'left'));
+  g.strokeStyle=C.muted; g.lineWidth=2; g.beginPath(); g.moveTo(10,92); g.lineTo(10+pxU,92); g.moveTo(10,88); g.lineTo(10,96); g.moveTo(10+pxU,88); g.lineTo(10+pxU,96); g.stroke();
+  label(g,'2π/a',10+pxU+6,92,C.muted,'left');
+  g.restore();
+}
+
+function drawRecip(C,N,K,phi,P,beams,ob){
+  const g=ctx.B, s=size.B; if(!g)return; g.clearRect(0,0,s,s); g.font='13px system-ui,sans-serif';
+  const E=Math.max(4.5,2*K+1.0), sc=(s/2-14)/E, cx=s/2, cy=s/2;
+  const X=u=>cx+u*sc, Y=v=>cy-v*sc;
+  const kx=K*Math.cos(phi*DEG), ky=K*Math.sin(phi*DEG), ccx=-kx, ccy=-ky; // circle centre = tail of k_in
+  // lattice
+  const hm=Math.ceil(E/2)+1; g.fillStyle=C.muted;
+  for(let a=-hm;a<=hm;a++)for(let b=-hm;b<=hm;b++){ const u=2*a,v=2*b; if(Math.abs(u)>E||Math.abs(v)>E)continue; g.beginPath(); g.arc(X(u),Y(v),a===0&&b===0?0:3,0,2*PI); g.fill(); }
+  // Ewald circle: faint base + intensity-weighted overlay
+  g.strokeStyle=C.grid; g.lineWidth=1.5; g.beginPath(); g.arc(X(ccx),Y(ccy),K*sc,0,2*PI); g.stroke();
+  g.strokeStyle=C.out; g.lineCap='butt';
+  for(let i=0;i<M;i+=2){ const F=mapF(P.f[i]); if(F<0.02)continue; const t0=P.theta[i], t1=P.theta[(i+2)%M]; g.globalAlpha=Math.min(1,0.15+F); g.lineWidth=2+5*F;
+    g.beginPath(); g.moveTo(X(ccx+K*Math.cos(t0)),Y(ccy+K*Math.sin(t0))); g.lineTo(X(ccx+K*Math.cos(t1)),Y(ccy+K*Math.sin(t1))); g.stroke(); }
+  g.globalAlpha=1;
+  // beams: k_out arrows from centre to highlighted G points
+  g.font='13px system-ui,sans-serif';
+  beams.forEach(b=>{ const gx=2*b.h1, gy=2*b.h2; g.strokeStyle=C.out; g.globalAlpha=0.5; g.lineWidth=1; g.beginPath(); g.moveTo(X(ccx),Y(ccy)); g.lineTo(X(gx),Y(gy)); g.stroke(); g.globalAlpha=1;
+    g.fillStyle=C.out; g.beginPath(); g.arc(X(gx),Y(gy),5.5,0,2*PI); g.fill(); g.strokeStyle=C.fg; g.lineWidth=1; g.stroke();
+    label(g,'('+b.h1+','+b.h2+')',X(gx)+(gx<0?1:-1)*8,Y(gy)-12,C.fg,gx<0?'left':'right'); });
+  if(ob){ const gx=2*ob.h1, gy=2*ob.h2; arrow(g,X(0),Y(0),X(gx),Y(gy),C.ok,3,10); g.strokeStyle=C.ok; g.lineWidth=2.5; g.beginPath(); g.arc(X(gx),Y(gy),9,0,2*PI); g.stroke();
+    g.font='bold 13px system-ui,sans-serif'; label(g,'G',(X(0)+X(gx))/2+(gy>=0?12:-12)*0.7,(Y(0)+Y(gy))/2+(gx>=0?-14:14),C.ok); g.font='13px system-ui,sans-serif'; }
+  // origin (forward beam, G = 0)
+  g.fillStyle=C.out; g.beginPath(); g.arc(X(0),Y(0),6,0,2*PI); g.fill(); g.strokeStyle=C.fg; g.lineWidth=1.2; g.stroke();
+  label(g,'O: G=0',X(0)+9,Y(0)+14,C.fg,'left');
+  // k_in arrow: tail at circle centre, tip on the origin
+  arrow(g,X(ccx),Y(ccy),X(0),Y(0),C.inc,3,11);
+  g.fillStyle=C.inc; g.beginPath(); g.arc(X(ccx),Y(ccy),3,0,2*PI); g.fill();
+  label(g,'k_in',X(ccx/2)-Math.sin(phi*DEG)*14,Y(ccy/2)-Math.cos(phi*DEG)*14,C.inc);
+  g.font='13px system-ui,sans-serif';
+  label(g,'axes in units of π/a; lattice spacing 2π/a; circle centred at −k_in',s/2,s-10,C.muted);
+  if(N===1) label(g,'N = 1: every point of the circle is allowed (q unconstrained)',s/2,16,C.out);
+}
+
+function fmt(x,d){ return x.toFixed(d===undefined?2:d); }
+function readouts(N,K,phi,beams,ob){
+  const kx=K*Math.cos(phi*DEG), ky=K*Math.sin(phi*DEG);
+  $('rK').textContent='('+fmt(kx)+', '+fmt(ky)+'),  |k| = '+fmt(K);
+  $('rK2').textContent=fmt(K/2,3);
+  $('rL').textContent=fmt(2/K,3);
+  $('rW').textContent=N===1?'n/a (no interference)':fmt(2/N,3)+' π/a';
+  let txt;
+  if(N===1) txt='Single atom: nothing to interfere with, so the intensity is the same in every direction. The Laue condition only appears once there are many atoms.';
+  else if(K<1) txt='λ > 2a (|k_in| < π/a): the Ewald circle has diameter 2|k_in| < 2π/a, the shortest reciprocal-lattice vector, so no G ≠ 0 can lie on it. Only the forward beam (G = 0) survives.';
+  else if(beams.length===0) txt='No reciprocal-lattice point lies on the circle (within the peak width ~'+fmt(2/N,2)+' π/a): the crystal scatters only forward. Rotate k_in, change |k_in|, or use the snap buttons.';
+  else txt=beams.length+' Bragg beam'+(beams.length>1?'s':'')+' plus the forward beam: lattice points on the Ewald circle satisfy 2k_in·G + G² = 0.';
+  { const md=S.mode, st=S.st, ns=N*N, nb=beams.length;
+    if(N>1&&md==='semi') txt='Semicrystalline: '+st.nOrd+' of '+ns+' atoms keep lattice sites (black), '+(ns-st.nOrd)+' sit at random positions (pink). '+(nb?nb+' sharp Bragg beam'+(nb>1?'s':'')+' at the usual angles, sitting on a smooth diffuse background.':'No lattice point on the Ewald circle: only the forward beam is sharp; the random atoms still give the diffuse background.');
+    if(N>1&&md==='amorph') txt='Amorphous: all atoms at random positions (minimum separation 0.8a, same density). There is no lattice, so no G and no sharp Bragg beams, only a broad diffuse halo (dashed curve = local average).';
+    if(N>1&&md==='thermal') txt='Thermal disorder: each atom is displaced by a Gaussian of rms '+S.sg.toFixed(3)+'a per axis. Peaks keep their positions but lose intensity by the Debye-Waller factor e^(-q²σ²); the lost intensity reappears as diffuse background, more so at large |q|.'+(nb?'':' No lattice point on the Ewald circle here.');
+    if(N>1&&md==='basis') txt='Crystal with a two-atom basis: the second atom (hollow, f₂/f₁ = '+S.rho.toFixed(2)+') sits at τ = ('+S.tx.toFixed(2)+','+S.ty.toFixed(2)+')a. Peak positions stay on the lattice; the structure factor F = 1 + (f₂/f₁)e^(iG·τ) rescales each beam, and can cancel it exactly (systematic absence).'+(nb?'':' No lattice point on the Ewald circle here.'); }
+  $('regime').textContent=txt;
+  const rows=[]; const lam=2*PI/(K*PI); const md=S.mode, st=S.st, ns=N*N, np=(md!=='perfect'&&st);
+  $('thr').innerHTML='<th>beam (h&#8321;,h&#8322;)</th><th>deflection 2&theta;</th><th>k<sub>out</sub> direction</th><th>peak I / N&#8308;</th><th>Bragg planes (hkl-type), n, d, &theta;<sub>B</sub></th>'+(np?'<th>direct sum I/N<sub>s</sub>&sup2; at k<sub>out</sub> (N<sub>s</sub> = '+ns+')</th>':'');
+  const Itl=d=>Core.intensityDirect(st,K,phi,d)*Math.pow(st.sumF/st.nSites,2);
+  const extra=b=>{ if(!np) return ''; const I=Itl(b.dirRad); let t=fmt(I,3);
+    if(md==='semi'){ const pe=st.nOrd/ns; t+='  (p² = '+fmt(pe*pe,3)+')'; }
+    else if(md==='thermal'){ const G2=Math.pow(2*PI,2)*(b.h1*b.h1+b.h2*b.h2); t+='  (e^(-G²σ²) = '+fmt(Math.exp(-G2*S.sg*S.sg),3)+')'; }
+    else if(md==='basis'){ const F=b.F; t='|F| = '+fmt(F,2)+', I/N² = '+fmt(I,2)+'  '+(F<0.05?'absent (systematic)':(F<0.95?'weakened':(F>1.05?'enhanced':'unchanged'))); }
+    return '<td>'+t+'</td>'; };
+  if(N===1) rows.push('<tr><td colspan="'+(np?6:5)+'">isotropic: continuous distribution of k_out, no discrete beams</td></tr>');
+  else{ rows.push('<tr><td>(0,0) forward</td><td>0.0°</td><td>'+fmt(phi,1)+'°</td><td>1.00</td><td>G = 0: unscattered beam</td>'+(np?'<td>'+fmt(Itl(phi*DEG),3)+'</td>':'')+'</tr>');
+    beams.forEach(b=>{ const exact=Math.abs(b.eps)<1e-7;
+      rows.push('<tr data-k="'+b.h1+','+b.h2+'" tabindex="0" class="'+(ob&&ob.h1===b.h1&&ob.h2===b.h2?'sel':'')+'" title="click to show this beam\'s G triangle"><td>('+b.h1+','+b.h2+')</td><td>'+fmt(b.deflDeg,1)+'°</td><td>'+fmt(b.dirDeg,1)+'°</td><td>'+fmt(b.I,2)+'</td><td>n='+b.n+', planes ('+b.p1+' '+b.p2+'), d='+fmt(b.d,3)+'a, θ_B='+fmt(b.thetaB,1)+'°'+(exact?'':' (detuned '+fmt(b.eps,3)+' π/a)')+'</td>'+extra(b)+'</tr>'); }); }
+  $('tb').innerHTML=rows.join('');
+  tbRows(beams,ob);
+  groBlock(N,K,beams,ob);
+  strBlock(N,K,phi,beams);
+}
+
+function tbRows(beams,ob){ $('tb').querySelectorAll('tr[data-k]').forEach(r=>{ const pick=()=>{S.sel=r.dataset.k; dirty=true;}; r.onclick=pick; r.onkeydown=e=>{ if(e.key==='Enter'||e.key===' '){e.preventDefault();pick();} }; }); }
+function sfRow(ob){ if(S.mode!=='basis'||!ob) return ''; const F=ob.F, I=Core.intensityDirect(S.st,S.K,S.phi,ob.dirRad)*Math.pow(S.st.sumF/S.st.nSites,2);
+  return '<div><b>structure factor |F| = |1 + (f₂/f₁)e^(iG·τ)|, and I/N<sub>s</sub>²</b>'+F.toFixed(3)+',  '+I.toFixed(3)+(F<0.05?'  (beam absent)':'')+'</div>'; }
+function strBlock(N,K,phi,beams){
+  const el=$('str'), md=S.mode, st=S.st; if(md==='perfect'||!st){ el.style.display='none'; return; } el.style.display='';
+  const ns=N*N, f=(x,d)=>x.toFixed(d), sw=(c,t)=>'<span class="sw" style="background:'+c+'"></span>'+t;
+  let html='<b>Structure readout: direct sum I(q) = |Σ<sub>j</sub> f<sub>j</sub> e<sup>-iq·r<sub>j</sub></sup>|²</b>';
+  const leg={semi:sw('var(--fg)','ordered ('+st.nOrd+')')+' '+sw('#CC79A7','random ('+(ns-st.nOrd)+')'),amorph:sw('#CC79A7','random, min separation 0.8a ('+ns+')'),thermal:sw('var(--fg)','displaced lattice atoms ('+ns+')'),basis:sw('var(--fg)','lattice atoms (f₁)')+' '+sw('#E69F00','basis atoms (f₂ = '+S.rho.toFixed(2)+' f₁)')};
+  html+='<div style="margin-top:4px">'+leg[md]+'</div>';
+  if(N===1){ el.innerHTML=html+'<div class="note">N = 1: a single atom, nothing to interfere with.</div>'; return; }
+  const P=S.P, ab=Core.pickBeam(beams,S.sel), op=Core.offPeak(st,P,K,phi,beams,4), pr=Core.predictedDiffuse(st,op.qs);
+  const bgT=op.mean, bgN=bgT*ns, cells=[];
+  cells.push('<div><b>normalisation</b>plotted: I/(Σf)².  Ĩ ≡ I/N<sub>s</sub>², N<sub>s</sub> = '+ns+' lattice sites</div>');
+  if(ab){ const I=Core.intensityDirect(st,K,phi,ab.dirRad)*Math.pow(st.sumF/st.nSites,2), pk=Core.predictedPeak(st,ab.h1,ab.h2);
+    cells.push('<div><b>active beam ('+ab.h1+','+ab.h2+'): peak Ĩ (direct sum) vs prediction</b>'+f(I,3)+'  vs  '+f(pk,3)+(md==='semi'?'  = p² + (1−p²)/N<sub>s</sub>, p² = '+f(Math.pow(st.nOrd/ns,2),3):(md==='thermal'?'  = e^(−G²σ²) + (1−e^(−G²σ²))/N<sub>s</sub>':'  = |F|²'))+'</div>');
+    if(isFinite(bgT)&&bgT>0) cells.push('<div><b>peak / diffuse background (Ĩ<sub>peak</sub> / Ĩ<sub>bg</sub>)</b>'+(I/bgT).toExponential(2)+'</div>'); }
+  else cells.push('<div><b>active beam</b>none: no lattice point on the Ewald circle</div>');
+  if(md==='amorph'){ const w=Math.max(2,Math.round(P.f.length/360*3)), M2=P.f.length, kk=K*PI, kv=Core.kin(K,phi); let best=0,bq=0; for(let i=0;i<M2;i++){ let a=0; for(let d=-w;d<=w;d++) a+=P.f[(i+d+M2*4)%M2]; a=a/(2*w+1)*ns; const q=Math.hypot(kk*Math.cos(P.theta[i])-kv[0],kk*Math.sin(P.theta[i])-kv[1]); if(q>2.5&&a>best){best=a;bq=q;} }
+    let mx=0; for(let i=0;i<M2;i++){ let dd=Math.abs(P.theta[i]-phi*DEG)%(2*PI); if(dd>PI) dd=2*PI-dd; if(dd>3*DEG&&P.f[i]>mx) mx=P.f[i]; }
+    cells.push('<div><b>halo: largest local average of S = I/N<sub>s</sub></b>'+f(best,2)+' at |q| = '+f(bq,1)+'/a  (2π/a = 6.28/a); S → 1 at large |q|</div>');
+    cells.push('<div><b>tallest single-direction I/(Σf)² away from the forward beam</b>'+mx.toExponential(1)+'  (a Bragg peak would reach about 1)</div>'); }
+  else { cells.push('<div><b>diffuse background, mean off-peak: Ĩ<sub>bg</sub>, and N<sub>s</sub>·Ĩ<sub>bg</sub> = I<sub>bg</sub>/N<sub>s</sub></b>'+bgT.toExponential(2)+',  '+f(bgN,3)+(md==='semi'?'  vs  1−p² = '+f(pr,3)+'  (naive 1−p = '+f(1-st.nOrd/ns,3)+')':(md==='thermal'?'  vs  mean(1−e^(−q²σ²)) = '+f(pr,3):'  (no random atoms: only Laue side-lobes)'))+'</div>'); }
+  html+='<div class="gr">'+cells.join('')+'</div>';
+  const why={semi:'The ordered atoms (a fraction p) add in phase at the Bragg angles, amplitude pN<sub>s</sub>, so the peak is p²N<sub>s</sub>² (Ĩ = p²). Random atoms add with random phases, giving a smooth diffuse level ∝ N<sub>s</sub>, not a peak. The diffuse level is (1−p) N<sub>s</sub> from the random atoms plus p(1−p) N<sub>s</sub> from the vacancies they leave in the lattice, total (1−p²) N<sub>s</sub>: a sharp peak sitting on a halo is what semicrystalline polymers look like. Peak and background are compared in the same units, I/N<sub>s</sub>².',
+    amorph:'Fully random atoms with a minimum separation of 0.8a (same density). With no lattice there is no G and no Bragg planes. Real amorphous solids have short-range order, a preferred nearest-neighbour distance, so S(q) shows a broad halo near |q| ≈ 2π/(nearest-neighbour distance) and no sharp peaks. Here that comes only from the excluded volume. The single-direction pattern is speckle; the dashed curve is its local average.',
+    thermal:'Each atom is displaced by a Gaussian of rms σ per axis. The coherent peak is reduced by the Debye-Waller factor e<sup>−q²σ²</sup>, and (1−e<sup>−q²σ²</sup>) of the intensity goes into a diffuse background, which therefore matters most at large q.',
+    basis:'Two atoms per cell: the amplitude of each lattice beam is multiplied by F = f₁ + f₂e<sup>iG·τ</sup> = f₁[1 + (f₂/f₁)e<sup>iG·τ</sup>]. For the body-centre offset τ = (a/2)(1,1) and f₂ = f₁: F = 1 + e<sup>iπ(h₁+h₂)</sup>, so (1,0) is absent and (1,1), (2,0) are enhanced to |F|² = 4. The beam positions are unchanged.'};
+  el.innerHTML=html+'<div class="note" style="color:var(--fg)">'+why[md]+'</div>';
+}
+function planeCtl(N,ob){ const fam=S.fam, cnt=S.hl.length, np=Object.keys(fam.counts).length, ord=ob.n>1;
+  return '<div class="grp" style="margin-top:8px"><span><b>Bragg plane</b> (normal to G, atoms with g·R = 2πm):</span><button id="pPrev" aria-label="previous plane">&#9664;</button><b style="min-width:86px;text-align:center">plane m = '+S.m+'</b><button id="pNext" aria-label="next plane">&#9654;</button>'
+   +'<span>'+cnt+' atom'+(cnt===1?'':'s')+' on it, '+np+' occupied planes in the family, '+(N*N)+' atoms in total</span>'
+   +'<span>'+(S.mode==='semi'?'(ordered atoms only; random atoms lie on no plane)':(S.mode==='thermal'?'(atoms displaced by &sigma;, planes drawn through the ideal sites)':(S.mode==='basis'?'(lattice atoms only; the hollow basis atoms form a second, shifted set of planes)':'')))+'</span><label style="font-size:.9rem"><input type="checkbox" id="pCol"'+(S.col?' checked':'')+'> colour all planes (each atom is on exactly one)</label></div>'
+   +'<div class="note" style="color:var(--fg)"><b>Why this gives Bragg reflection.</b> Atoms on one plane (ringed) scatter exactly in phase for specular reflection: k<sub>in</sub> and k<sub>out</sub> make equal angles &theta; with the plane, so the path difference between any two atoms on it is zero. Rays reflected from successive planes differ in path by 2d sin&theta; = '+(ord?ob.n+'':'N')+'&lambda;'+(ord?' (here N = '+ob.n+')':'')+', a whole number of wavelengths, so every plane adds in phase. The reflection comes from the whole family of planes; the highlighted plane is just one member. m counts planes along +G from an atom on plane 0 (the plane nearest the vector origin), so g·R = 2πm.'
+   +(ord?' <b>Higher order:</b> G = N&middot;g with N = '+ob.n+' and g = ('+ob.p1+','+ob.p2+'), so the planes are those of g (d = 2&pi;/|g|) but neighbouring planes now differ by '+ob.n+' wavelengths.':' Here G = g (first order, N = 1).')+'</div>'; }
+function groBlock(N,K,beams,ob){
+  const el=$('gro'); let html='<b>G-vector check: does k<sub>in</sub> + G = k<sub>out</sub>?</b>';
+  if(!S.ov){ el.innerHTML=html+'<div class="note">Overlay is off. Use the toggle in the controls to draw the G triangle and Bragg planes on the crystal.</div>'; return; }
+  if(N===1){ el.innerHTML=html+'<div class="note">N = 1: a single atom has no lattice, so no G and no Bragg planes.</div>'; return; }
+  if(S.mode==='amorph'){ el.innerHTML=html+'<div class="note">Amorphous: there is no lattice, so no reciprocal-lattice vector G and no Bragg planes; the G triangle is not defined. See the structure readout for the diffuse halo.</div>'; return; }
+  if(!ob){ el.innerHTML=html+'<div class="note" style="color:var(--fg)">no G satisfies 2k<sub>in</sub>·G + G² = 0 here. Rotate k<sub>in</sub> or use the snap buttons.</div>'; return; }
+  const ov=S.ovGeo, f=(x,d)=>x.toFixed(d), G2=ov.Gmag/(2*PI), Gp=ov.Gmag/PI, ck=ov.check;
+  const btn=beams.map(b=>'<button data-k="'+b.h1+','+b.h2+'" class="'+(b===ob?'on':'')+'">('+b.h1+','+b.h2+')</button>').join(' ');
+  const exact=Math.abs(ck)<1e-6;
+  html+='<div class="grp" style="margin-top:6px"><span>active beam:</span>'+btn+'</div>'
+   +'<div class="gr">'
+   +'<div><b>(h₁,h₂), G = (2π/a)(h₁,h₂)</b>('+ob.h1+', '+ob.h2+')'+(ob.n>1?',  g = ('+ob.p1+','+ob.p2+'), n = '+ob.n:'')+'</div>'
+   +'<div><b>|G|</b>'+f(G2,3)+' × 2π/a = '+f(Gp,3)+' π/a</div>'
+   +'<div><b>d = 2π/|g|</b>'+f(ob.d,3)+' a</div>'
+   +'<div><b>θ (k<sub>in</sub> to plane) and 2θ (deflection)</b>'+f(ov.thetaDeg,2)+'°  and  '+f(ov.twoThetaDeg,2)+'°</div>'
+   +'<div><b>Bragg: 2d sinθ vs nλ</b>'+f(2*ob.d*Math.sin(ov.thetaDeg*DEG),3)+' a  vs  '+f(ob.n*ov.lambda/(1),3)+' a</div>'
+   +'<div><b>|k<sub>in</sub> + G| − |k<sub>out</sub>|</b>'+(exact?'0 (|error| < 1e-6 π/a): the triangle closes':f(ck,3)+' π/a: detuned, the gap is drawn dotted')+'</div>'
+   +sfRow(ob)+'</div>'+planeCtl(N,ob)
+   +'<div class="note">Blue k<sub>in</sub>, green G placed at its tip, orange k<sub>out</sub> from the same origin. The faint green lines are the Bragg planes (normal to G, through atoms); k<sub>in</sub> and k<sub>out</sub> make the same angle θ with them, so G (which is k<sub>out</sub> − k<sub>in</sub>) bisects the pair as the plane normal.</div>';
+  el.innerHTML=html;
+  const pp=$('pPrev'), pn=$('pNext'), pc=$('pCol'); if(pp) pp.onclick=()=>stepM(-1); if(pn) pn.onclick=()=>stepM(1); if(pc) pc.onchange=e=>{S.col=e.target.checked; dirty=true;};
+  el.querySelectorAll('button[data-k]').forEach(b=>{ b.onclick=()=>{S.sel=b.dataset.k; dirty=true;}; });
+}
+$('A').addEventListener('click',e=>{ if(!S.ov||S.N<2||!S.geo||S.mode==='amorph')return; const r=e.target.getBoundingClientRect(), x=(e.clientX-r.left)-S.geo.cx, y=-((e.clientY-r.top)-S.geo.cy);
+  if(Math.hypot(x,y)<S.geo.r0*0.95){ if(S.fam&&S.ovGeo){ const ov=S.ovGeo, m=Core.planeFromOffset(S.fam,S.shown.p1,S.shown.p2,S.N,x*ov.n[0]-y*ov.n[1],S.ovAd); S.m=nearestM(S.fam,m); dirty=true; } return; } const a=Math.atan2(y,x)/DEG, beams=Core.visibleBeams(S.N,S.K,S.phi,0.05); let best=null;
+  beams.forEach(b=>{ let d=Math.abs(b.dirDeg-norm360(a)); if(d>180)d=360-d; if(!best||d<best.d)best={d:d,b:b}; });
+  if(best&&best.d<14){ S.sel=best.b.h1+','+best.b.h2; dirty=true; } });
+
+// ---------- loop ----------
+let last=0;
+function frame(t){
+  const dt=Math.min(0.1,(t-last)/1000||0); last=t;
+  if(S.playing && !document.hidden){ S.phi=norm360(S.phi+S.speed*dt); $('phi').value=S.phi; $('phiV').textContent=S.phi.toFixed(1)+'°'; dirty=true; }
+  if(dirty){ dirty=false; try{ draw(); }catch(e){ console.error(e); } }
+  requestAnimationFrame(frame);
+}
+document.addEventListener('visibilitychange',()=>{last=performance.now();});
+fit(); sync(); requestAnimationFrame(frame);
+window.__S=S; window.__redraw=()=>{dirty=true;};
+})();
+</script>
+</body>
+</html>
