@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Viz · SSP L5 · Allowed k-states: density L/2π as L → ∞</title>
+<style>
+:root{--bg:#ffffff;--panel:#f6f7f9;--fg:#1b1f24;--muted:#5b6672;--grid:#d5dae0;--line:#c3cad2;--blue:#0072B2;--orange:#E69F00;--verm:#D55E00;--green:#009E73;--purple:#8a4f9e;--sky:#56B4E9}
+@media (prefers-color-scheme:dark){:root{--bg:#14171b;--panel:#1d2227;--fg:#e8ebee;--muted:#9aa5b1;--grid:#343b43;--line:#46505a;--blue:#56B4E9;--orange:#F0B429;--verm:#FF8A4C;--green:#2fd4a3;--purple:#c79ae0;--sky:#7cc4ee}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+.wrap{max-width:1100px;margin:0 auto;padding:16px 14px 40px}
+h1{font-size:1.25rem;margin:0 0 2px}
+.q{color:var(--muted);margin:0 0 12px}
+.eq{background:var(--panel);border-radius:8px;padding:10px 14px;font-family:"Cambria Math",Cambria,"STIX Two Math",Georgia,serif;font-size:1.05rem;display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:4px 24px}
+.eq div span.n{float:right;color:var(--muted);font-size:.85rem;margin-left:8px}
+.eq i{font-style:italic}
+.panel{background:var(--panel);border-radius:8px;padding:10px 12px;margin:12px 0}
+.panel h2{font-size:1rem;margin:0 0 6px}
+.panel h2 small{font-weight:400;color:var(--muted)}
+canvas{display:block;width:100%;touch-action:none;border-radius:6px}
+.ctl{display:flex;flex-wrap:wrap;gap:8px 16px;align-items:center}
+.ctl label{display:flex;align-items:center;gap:6px;font-size:.95rem}
+button,.seg label{font:inherit;font-size:.92rem;padding:5px 10px;border-radius:6px;border:1px solid var(--line);background:var(--bg);color:var(--fg);cursor:pointer}
+button:hover{border-color:var(--blue)}
+button.on{background:var(--blue);color:#fff;border-color:var(--blue)}
+input[type=range]{accent-color:var(--blue);width:170px}
+input[type=number]{width:64px;font:inherit;padding:3px 4px;background:var(--bg);color:var(--fg);border:1px solid var(--line);border-radius:5px}
+.seg{display:inline-flex;gap:0}.seg label{border-radius:0;padding:5px 10px}.seg label:first-child{border-radius:6px 0 0 6px}.seg label:last-child{border-radius:0 6px 6px 0}
+.seg input{position:absolute;opacity:0}.seg input:checked+span{font-weight:700;color:var(--blue)}
+.seg label:has(input:checked){border-color:var(--blue);background:color-mix(in srgb,var(--blue) 14%,var(--bg))}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media(max-width:820px){.grid2{grid-template-columns:1fr}}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:8px;margin-top:8px}
+.tile{background:var(--bg);border:1px solid var(--grid);border-radius:6px;padding:6px 10px}
+.tile b{display:block;font-size:1.05rem;font-variant-numeric:tabular-nums}
+.tile span{color:var(--muted);font-size:.82rem}
+.mode{font-variant-numeric:tabular-nums;margin-top:6px;min-height:4.4em}
+.ok{color:var(--green);font-weight:600}.bad{color:var(--verm);font-weight:600}
+.cap{color:var(--muted);font-size:.85rem;margin-top:4px}
+.strip{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:10px}
+.strip div{background:var(--bg);border:1px solid var(--grid);border-radius:6px;padding:8px 12px;font-size:.92rem}
+.strip b{display:block;margin-bottom:2px}
+ul{margin:4px 0 0 18px;padding:0}li{margin:3px 0}
+details{margin-top:8px}summary{cursor:pointer;font-weight:600}
+</style>
+</head>
+<body>
+<script src="../lab-back.js" defer></script><!-- added for louisvrh.github.io/lab: back link -->
+<div class="wrap">
+<h1>Allowed k-states: density L/2π as L → ∞</h1>
+<p class="q">Which wavevectors survive when the chain is closed into a ring of N atoms, how many are there, and what does each one look like as real lattice motion?</p>
+
+<div class="eq" aria-label="Governing equations">
+ <div><i>m</i> ü<sub><i>n</i></sub> = κ(<i>u</i><sub><i>n</i>+1</sub> − 2<i>u</i><sub><i>n</i></sub> + <i>u</i><sub><i>n</i>−1</sub>), &nbsp; <i>u</i><sub><i>n</i></sub> = ũ<sub><i>k</i></sub> e<sup><i>i</i>(<i>kna</i> − ω<i>t</i>)</sup></div>
+ <div>ω<sub><i>k</i></sub> = 2ω<sub>D</sub> |sin(<i>ka</i>/2)|, &nbsp; ω<sub>D</sub> ≡ √(κ/<i>m</i>) <span class="n">(4.10)</span></div>
+ <div><i>u</i><sub><i>n</i>+<i>N</i></sub>(<i>t</i>) = <i>u</i><sub><i>n</i></sub>(<i>t</i>) <span class="n">(5.1)</span></div>
+ <div><i>k</i> = <i>p</i> 2π/(<i>Na</i>), <i>p</i> ∈ ℤ, −π/<i>a</i> &lt; <i>k</i> ≤ π/<i>a</i> <span class="n">(5.2)</span></div>
+ <div><i>g</i><sub><i>k</i></sub> = <i>L</i>/2π, &nbsp; <i>L</i> = <i>Na</i> <span class="n">(5.3)</span></div>
+ <div>Σ<sub><i>k</i></sub> <i>F</i>(<i>k</i>) → (<i>L</i>/2π) ∫ <i>F</i>(<i>k</i>) d<i>k</i> as <i>L</i> → ∞ <span class="n">(5.9)</span></div>
+</div>
+
+<div class="panel">
+ <div class="ctl">
+  <label>N = <input type="range" id="Nsl" min="0" max="1000" value="0"> <input type="number" id="Nnum" min="2" max="200" step="1"></label>
+  <label><input type="checkbox" id="logN" checked> log slider</label>
+  <button id="inf" title="Increase N smoothly from 2 to 200">→ ∞</button>
+  <span class="seg" role="group" aria-label="Boundary conditions">
+   <label><input type="radio" name="bc" value="periodic" checked><span>Periodic (ring)</span></label>
+   <label><input type="radio" name="bc" value="box"><span>Box (fixed ends)</span></label>
+  </span>
+  <label>window Δk = <input type="range" id="dksl" min="0.1" max="2" step="0.05" value="0.8" style="width:110px"> <span id="dkval">0.80</span>/a</label>
+ </div>
+ <div class="ctl" style="margin-top:8px">
+  <button id="pm">◀ p</button><button id="pp">p ▶</button>
+  <button id="pre0">k = 0</button><button id="pre1">p = 1</button><button id="preE">zone edge</button><button id="preX">off-grid k</button>
+  <span style="flex:1"></span>
+  <button id="play">Pause</button>
+  <label>speed <input type="range" id="spd" min="0.05" max="2" step="0.05" value="0.6" style="width:110px"></label>
+  <label><input type="checkbox" id="therm"> thermal mixture</label><button id="reroll" style="display:none">re-roll</button>
+ </div>
+</div>
+
+<div class="panel">
+ <h2>Reciprocal space <small>click or drag on the upper plot to choose a k; drag the lower strip to move the Δk window</small></h2>
+ <canvas id="rec" tabindex="0" aria-label="Allowed k values on the dispersion curve"></canvas>
+ <div class="tiles">
+  <div class="tile"><span>spacing between allowed k</span><b id="t-sp"></b></div>
+  <div class="tile"><span>density of states g<sub>k</sub></span><b id="t-g"></b></div>
+  <div class="tile"><span>number of allowed k in the zone</span><b id="t-n"></b></div>
+  <div class="tile"><span>states in window vs g<sub>k</sub>Δk</span><b id="t-w"></b></div>
+  <div class="tile"><span>(1/N) Σ ω<sub>k</sub> vs (a/2π)∫ω dk = 4/π</span><b id="t-m"></b></div>
+ </div>
+</div>
+
+<div class="grid2">
+ <div class="panel">
+  <h2 id="ringH">Real space: the ring</h2>
+  <canvas id="ring" aria-label="Ring of atoms in the selected mode"></canvas>
+  <div class="mode" id="modeInfo"></div>
+ </div>
+ <div class="panel">
+  <h2>Same motion, ring cut open <small>(true scale, displacement ≤ 0.4a)</small></h2>
+  <canvas id="chain" aria-label="Unrolled chain and displacement profile"></canvas>
+  <div class="cap">Hollow atoms are the periodic images of atoms 0, 1 and N−2, N−1: they must sit on the same curve as the real ones. In the ring picture the displacement is drawn radially and exaggerated; the real motion is longitudinal.</div>
+ </div>
+</div>
+
+<div class="panel">
+ <h2>Convergence of the sum to the integral <small>|(1/N)Σ<sub>k</sub> ω<sub>k</sub> − 4/π| against N</small></h2>
+ <canvas id="conv" aria-label="Convergence plot"></canvas>
+</div>
+
+<div class="panel">
+ <h2>Why these k, and why it matters</h2>
+ <div class="strip">
+  <div><b>Only some k fit the ring</b>Closing the chain forces u<sub>n+N</sub> = u<sub>n</sub>, so e<sup>ikNa</sup> = 1 and kL = 2πp: an integer number p of wavelengths must fit around the ring. Drag k off a dot and the wave no longer joins at the seam.</div>
+  <div><b>Spacing 2π/L, but always N of them</b>Longer chain: finer spacing 2π/L and density g<sub>k</sub> = L/2π. The zone has fixed width 2π/a, so the count is (2π/a)(L/2π) = N, one state per atom.</div>
+  <div><b>The continuum limit</b>As L → ∞ the dots fill the zone uniformly and Σ<sub>k</sub> → (L/2π)∫dk (5.9). That is what turns thermodynamic sums over modes into integrals.</div>
+  <div><b>Travelling vs standing waves</b>Ring: ±k are independent travelling waves, spacing 2π/L over (−π/a, π/a]. Box with fixed ends: standing waves sin(kna), k = pπ/L &gt; 0, density L/π, same count.</div>
+ </div>
+</div>
+
+<div class="panel">
+ <h2>What to notice</h2>
+ <ul>
+  <li>Press → ∞: the dots crowd together but never leave the zone, and their number stays N. The spacing 2π/L shrinks while the density L/2π grows.</li>
+  <li>Pick a dot: the sine wave around the ring closes exactly on itself, with p wavelengths. Drag between dots and a kink appears at the seam.</li>
+  <li>The Δk window always holds about (L/2π)Δk states, and (1/N)Σω<sub>k</sub> falls onto 4/π like 1/N² (ring).</li>
+ </ul>
+ <details><summary>Model and assumptions</summary>
+  <ul>
+   <li>Monatomic harmonic chain, nearest-neighbour springs, a = ω<sub>D</sub> = 1; ω<sub>D</sub> = √(κ/m) is the spring frequency, not a Debye cut-off.</li>
+   <li>Ring: u<sub>n+N</sub> = u<sub>n</sub>. Allowed p follow Eq. 5.2 exactly: p = 0, ±1, …, ±(N−1)/2 for odd N; p = −N/2+1, …, N/2 for even N (the zone-edge state k = π/a exists only for even N).</li>
+   <li>Box: fixed ends u<sub>0</sub> = u<sub>N</sub> = 0 give N−1 modes sin(pπn/N), p = 1, …, N−1 (one per mobile atom), spacing π/L, density L/π; so the count is N−1, which is N in the large-N limit.</li>
+   <li>Each displayed mode is an exact analytic solution, u<sub>n</sub> = A cos(kna − ω<sub>k</sub>t) (ring) or A sin(kna) cos ω<sub>k</sub>t (box). No time-stepping is used on the page; the test suite also checked them against velocity-Verlet evolution of the ring (energy drift &lt; 1e-5 over 25 periods).</li>
+   <li>The k = 0 mode is a uniform shift with ω = 0 (no restoring force); the page shows it as a static offset. The thermal mixture is a random-phase sum of all N−1 vibrational modes with amplitudes ∝ 1/ω<sub>k</sub> (equipartition-like), normalised to rms 0.25a.</li>
+   <li>The sum-vs-integral check uses the mean over allowed k of ω<sub>k</sub> (box: over its N−1 modes); the limit is 4/π in units of ω<sub>D</sub>.</li>
+  </ul>
+ </details>
+</div>
+</div>
+<script src="core.js"></script>
+<script>
+(function(){
+"use strict";
+var PI=Math.PI, TP=2*PI, AMP=0.4;
+var S={N:12,bc:'periodic',k:TP*3/12,free:false,t:0,speed:0.6,paused:false,thermal:false,tm:null,seed:1,win:{k0:0.9,dk:0.8},inf:false,Nf:2};
+var $=function(id){return document.getElementById(id)};
+var COL={};
+function readColors(){var cs=getComputedStyle(document.documentElement);['bg','panel','fg','muted','grid','line','blue','orange','verm','green','purple','sky'].forEach(function(n){COL[n]=cs.getPropertyValue('--'+n).trim()})}
+readColors();
+if(window.matchMedia)window.matchMedia('(prefers-color-scheme:dark)').addEventListener('change',function(){setTimeout(readColors,50)});
+
+/* ---------- canvases ---------- */
+var views={};
+function fit(id,h){var cv=$(id),dpr=window.devicePixelRatio||1,w=cv.parentElement.clientWidth-(cv.parentElement.classList.contains('panel')?24:0);
+ if(w<50)w=50;var v=views[id];
+ if(!v||v.w!==w||v.dpr!==dpr||v.h!==h){cv.style.width=w+'px';cv.style.height=h+'px';cv.width=Math.round(w*dpr);cv.height=Math.round(h*dpr);v={cv:cv,g:cv.getContext('2d'),w:w,h:h,dpr:dpr};views[id]=v}
+ v.g.setTransform(v.dpr,0,0,v.dpr,0,0);v.g.clearRect(0,0,w,h);return v}
+function fmt(x,d){return (Math.abs(x)<5e-13?0:x).toFixed(d===undefined?3:d)}
+function txt(g,s,x,y,col,size,al,bold){g.fillStyle=col||COL.fg;g.font=(bold?'600 ':'')+(size||13)+'px system-ui,sans-serif';g.textAlign=al||'left';g.fillText(s,x,y)}
+
+/* ---------- state helpers ---------- */
+function ks(){return Core.allowedK(S.N,S.bc)}
+function kRange(){return S.bc==='box'?[0,PI]:[-PI,PI]}
+function clampWin(){var r=kRange();S.win.dk=Math.min(S.win.dk,r[1]-r[0]);S.win.k0=Math.max(r[0],Math.min(r[1]-S.win.dk,S.win.k0))}
+function NfromSlider(v){return $('logN').checked?Math.round(2*Math.pow(100,v/1000)):Math.round(2+198*v/1000)}
+function sliderFromN(N){return $('logN').checked?1000*Math.log(N/2)/Math.log(100):1000*(N-2)/198}
+function rebuildThermal(){S.tm=S.thermal?Core.thermal(S.N,S.bc,S.seed,0.25):null}
+var dirty=true;
+function setN(N){N=Math.max(2,Math.min(200,Math.round(N)));
+ S.N=N;if(!S.free){var m=Core.nearest(N,S.bc,S.k);S.k=m.k}else if(S.bc==='box'){S.k=Math.abs(S.k)}
+ $('Nsl').value=sliderFromN(N);$('Nnum').value=N;rebuildThermal();dirty=true}
+function setBC(bc){S.bc=bc;S.free=false;var m=Core.nearest(S.N,bc,S.k);S.k=m.k;clampWin();rebuildThermal();dirty=true}
+function selectIdx(d){var a=ks(),i=0,best=1e9;for(var j=0;j<a.length;j++){var dd=Math.abs(a[j].k-S.k);if(dd<best){best=dd;i=j}}
+ if(S.free){ // step to next allowed in direction d
+  var j2=-1;if(d>0){for(j=0;j<a.length;j++)if(a[j].k>S.k+1e-12){j2=j;break}}else{for(j=a.length-1;j>=0;j--)if(a[j].k<S.k-1e-12){j2=j;break}}
+  if(j2>=0)i=j2;S.free=false;S.k=a[i].k}
+ else{i=Math.max(0,Math.min(a.length-1,i+d));S.k=a[i].k}dirty=true}
+function curP(){var m=Core.nearest(S.N,S.bc,S.k);return m.p}
+function uAt(n,t){return S.thermal&&S.tm?Core.thermalU(S.tm,n,t):Core.modeU(n,t,S.k,AMP,S.bc)}
+
+/* ---------- reciprocal panel ---------- */
+var geo={};
+function drawRec(){
+ var v=fit('rec',356),g=v.g,w=v.w,h=v.h;
+ var x0=54,x1=w-18,yTop=16,yBase=186,yA=218,sTop=284,sBot=310;
+ geo={x0:x0,x1:x1,yTop:yTop,yA:yA,sTop:sTop,sBot:sBot};
+ function X(k){return x0+(k+PI)/TP*(x1-x0)}
+ function Y(o){return yBase-(o/2.2)*(yBase-yTop)}
+ var N=S.N,a=ks(),box=S.bc==='box',i;
+ // box: hatch the k<0 half
+ if(box){g.fillStyle=COL.grid;g.globalAlpha=.35;g.fillRect(x0,yTop,X(0)-x0,yA-yTop+8);g.globalAlpha=1;
+  txt(g,'k < 0: same standing waves as k > 0',(x0+X(0))/2,yTop+14,COL.muted,12,'center')}
+ // grid + axes
+ g.strokeStyle=COL.grid;g.lineWidth=1;g.beginPath();[0,1,2].forEach(function(o){g.moveTo(x0,Y(o));g.lineTo(x1,Y(o))});g.stroke();
+ [0,1,2].forEach(function(o){txt(g,String(o),x0-8,Y(o)+4,COL.muted,12,'right')});
+ g.save();g.translate(14,(yTop+yBase)/2);g.rotate(-PI/2);txt(g,'ω_k / ω_D',0,0,COL.muted,13,'center');g.restore();
+ // zone edges
+ g.setLineDash([4,4]);g.strokeStyle=COL.line;g.beginPath();[-PI,PI].forEach(function(k){g.moveTo(X(k),yTop);g.lineTo(X(k),yA)});g.stroke();g.setLineDash([]);
+ // window band
+ var wk0=S.win.k0,wdk=S.win.dk;
+ g.fillStyle=COL.purple;g.globalAlpha=.13;g.fillRect(X(wk0),yTop,X(wk0+wdk)-X(wk0),sBot-yTop);g.globalAlpha=1;
+ g.strokeStyle=COL.purple;g.lineWidth=1.5;g.beginPath();g.moveTo(X(wk0),yTop);g.lineTo(X(wk0),sBot);g.moveTo(X(wk0+wdk),yTop);g.lineTo(X(wk0+wdk),sBot);g.stroke();
+ // dispersion
+ g.strokeStyle=COL.fg;g.lineWidth=1.6;g.beginPath();for(i=0;i<=300;i++){var kk=-PI+TP*i/300;(i?g.lineTo:g.moveTo).call(g,X(kk),Y(Core.omega(kk)))}g.stroke();
+ // axis line
+ g.strokeStyle=COL.fg;g.lineWidth=1.2;g.beginPath();g.moveTo(x0,yA);g.lineTo(x1,yA);g.stroke();
+ var tk=[[-PI,'−π/a'],[-PI/2,'−π/2a'],[0,'0'],[PI/2,'π/2a'],[PI,'π/a']];
+ tk.forEach(function(t){g.beginPath();g.moveTo(X(t[0]),yA-4);g.lineTo(X(t[0]),yA+4);g.stroke();txt(g,t[1],X(t[0]),yA+46,COL.muted,12,'center')});
+ txt(g,'k',x1+2,yA+4,COL.muted,13,'left');
+ // dots
+ var r=Math.max(1.3,Math.min(4.2,190/N)),maxc=1;
+ if(S.thermal&&S.tm){S.tm.modes.forEach(function(m){maxc=Math.max(maxc,Math.hypot(m.cr,m.ci))});}
+ var cmap={};if(S.thermal&&S.tm)S.tm.modes.forEach(function(m){cmap[m.p]=Math.hypot(m.cr,m.ci)});
+ var selP=S.free?null:curP();
+ if(N<=80){g.strokeStyle=COL.blue;g.globalAlpha=.25;g.lineWidth=1;g.beginPath();a.forEach(function(m){g.moveTo(X(m.k),Y(Core.omega(m.k)));g.lineTo(X(m.k),yA)});g.stroke();g.globalAlpha=1}
+ a.forEach(function(m){var inW=m.k>=wk0-1e-12&&m.k<wk0+wdk-1e-12,rr=r;
+  if(S.thermal&&S.tm&&cmap[m.p]!==undefined){rr=r*(0.5+1.2*Math.min(1,cmap[m.p]/ (0.6*maxc)))}
+  g.fillStyle=inW?COL.green:COL.blue;
+  g.beginPath();g.arc(X(m.k),Y(Core.omega(m.k)),rr,0,TP);g.fill();
+  g.beginPath();g.arc(X(m.k),yA,rr,0,TP);g.fill()});
+ // selected
+ var sx=X(S.k),sy=Y(Core.omega(S.k));
+ if(S.free){g.strokeStyle=COL.verm;g.lineWidth=2;g.setLineDash([4,3]);g.beginPath();g.moveTo(sx,sy);g.lineTo(sx,yA);g.stroke();g.setLineDash([]);
+  g.beginPath();g.moveTo(sx,sy-7);g.lineTo(sx+6,sy);g.lineTo(sx,sy+7);g.lineTo(sx-6,sy);g.closePath();g.stroke();
+  txt(g,'k not allowed',sx+(sx>w-120?-10:10),(yBase+yA)/2+4,COL.verm,12,sx>w-120?'right':'left',true)}
+ else{g.strokeStyle=COL.orange;g.lineWidth=2.5;g.beginPath();g.arc(sx,sy,r+4,0,TP);g.stroke();g.beginPath();g.arc(sx,yA,r+4,0,TP);g.stroke()}
+ // spacing bracket
+ var b1=box?a[0]:a.filter(function(m){return m.p===0})[0],b2=box?a[1]:a.filter(function(m){return m.p===1})[0];
+ if(b1&&b2){var bx1=X(b1.k),bx2=X(b2.k),by=yA+12;g.strokeStyle=COL.orange;g.lineWidth=1.6;g.beginPath();g.moveTo(bx1,by-4);g.lineTo(bx1,by+4);g.moveTo(bx2,by-4);g.lineTo(bx2,by+4);g.moveTo(bx1,by);g.lineTo(bx2,by);g.stroke();
+  txt(g,(box?'π/L':'2π/L')+' = '+fmt(Core.spacing(N,S.bc),3)+'/a',bx1-2,by+17,COL.orange,12,'left',true)}
+ // top-right counts
+ txt(g,'N = '+N+'   L = '+N+'a   '+a.length+' allowed k',x1-4,yTop+12,COL.fg,13,'right',true);
+ // window strip
+ g.strokeStyle=COL.line;g.lineWidth=1;g.strokeRect(x0,sTop,x1-x0,sBot-sTop);
+ g.fillStyle=COL.purple;g.globalAlpha=.3;g.fillRect(X(wk0),sTop,X(wk0+wdk)-X(wk0),sBot-sTop);g.globalAlpha=1;
+ var cnt=Core.windowCount(N,S.bc,wk0,wdk),exp=Core.density(N,S.bc)*wdk;
+ var mid=(X(wk0)+X(wk0+wdk))/2,lab='n = '+cnt+'  vs  g·Δk = '+fmt(exp,1);
+ var tw=g.measureText(lab).width+4,lx=mid;if(lx+tw/2>x1)lx=x1-tw/2;if(lx-tw/2<x0)lx=x0+tw/2;
+ txt(g,lab,lx,sBot+16,COL.purple,12.5,'center',true);
+ txt(g,'Δk window (drag here)',x1,sTop-5,COL.muted,12,'right');
+ S._cnt=cnt;S._exp=exp;
+}
+var drag=null;
+function kFromX(x){return (x-geo.x0)/(geo.x1-geo.x0)*TP-PI}
+function recPoint(e){var r=$('rec').getBoundingClientRect();return {x:e.clientX-r.left,y:e.clientY-r.top}}
+function pickK(p){var k=kFromX(p.x);k=Math.max(-PI+1e-9,Math.min(PI,k));if(S.bc==='box')k=Math.abs(k);
+ var m=Core.nearest(S.N,S.bc,k),px=Math.abs((m.k-k)/TP*(geo.x1-geo.x0));
+ if(px<=7){S.k=m.k;S.free=false}else{S.k=(S.bc==='box'&&k<=1e-6)?1e-6:k;S.free=true}dirty=true}
+$('rec').addEventListener('pointerdown',function(e){var p=recPoint(e);$('rec').setPointerCapture(e.pointerId);
+ if(p.y>=geo.sTop-6){var kx=kFromX(p.x);var inside=kx>=S.win.k0&&kx<=S.win.k0+S.win.dk;drag={m:'win',off:inside?kx-S.win.k0:S.win.dk/2};
+  S.win.k0=kx-drag.off;clampWin()}
+ else{drag={m:'k'};pickK(p)}dirty=true});
+$('rec').addEventListener('pointermove',function(e){if(!drag)return;var p=recPoint(e);
+ if(drag.m==='k')pickK(p);else{S.win.k0=kFromX(p.x)-drag.off;clampWin();dirty=true}});
+['pointerup','pointercancel'].forEach(function(n){$('rec').addEventListener(n,function(){drag=null})});
+$('rec').addEventListener('keydown',function(e){if(e.key==='ArrowRight'){selectIdx(1);e.preventDefault()}else if(e.key==='ArrowLeft'){selectIdx(-1);e.preventDefault()}});
+
+/* ---------- ring / box real-space panel ---------- */
+function drawRing(){
+ var v=fit('ring',380),g=v.g,w=v.w,h=v.h,N=S.N,box=S.bc==='box',k=S.k,om=Core.omega(k),t=S.t,th=S.thermal&&S.tm;
+ var pp=box?Core.wavesAround(N,k)/2:Core.wavesAround(N,k),pInt=Math.abs(pp-Math.round(pp))<1e-9;
+ var i;
+ if(!box){
+  var cx=w/2,cy=h/2+4,R=Math.min(w,h)/2-58,Ad=0.14*R;
+  g.strokeStyle=COL.grid;g.lineWidth=1;g.setLineDash([3,4]);g.beginPath();g.arc(cx,cy,R,0,TP);g.stroke();g.setLineDash([]);
+  function pt(th_,u){var r=R+Math.max(-0.4*R,Math.min(0.4*R,u/AMP*Ad));return [cx+r*Math.cos(th_),cy-r*Math.sin(th_)]}
+  if(!th){ // continuous wave
+   var M=480,first=null,last=null;g.strokeStyle=COL.blue;g.lineWidth=2.2;g.beginPath();
+   for(i=0;i<=M;i++){var q=TP*i/M,P=pt(q,AMP*Math.cos(pp*q-om*t));if(i===0)first=P;last=P;(i?g.lineTo:g.moveTo).call(g,P[0],P[1])}g.stroke();
+   if(!pInt){g.strokeStyle=COL.verm;g.lineWidth=2.5;g.beginPath();g.moveTo(first[0],first[1]);g.lineTo(last[0],last[1]);g.stroke();
+    [first,last].forEach(function(P){g.fillStyle=COL.verm;g.beginPath();g.arc(P[0],P[1],4,0,TP);g.fill()})}}
+  // seam marker
+  g.strokeStyle=COL.fg;g.lineWidth=1;g.beginPath();g.moveTo(cx+R-Ad*2.1,cy);g.lineTo(cx+R+Ad*2.6,cy);g.stroke();
+  txt(g,pInt||th?'seam: n = N ≡ n = 0':'seam: mismatch!',cx+R+Ad*2.6+4>w-90?w-6:cx+R+Ad*2.6+4,cy-8,pInt||th?COL.muted:COL.verm,12,cx+R+Ad*2.6+4>w-90?'right':'left',!pInt&&!th);
+  // atoms
+  var ar=Math.max(1.6,Math.min(7,R*PI/N*0.42));
+  for(i=0;i<N;i++){var q2=TP*i/N,P2=pt(q2,uAt(i,t));g.fillStyle=i===0?COL.orange:COL.fg;g.beginPath();g.arc(P2[0],P2[1],i===0?Math.max(ar,3.2):ar,0,TP);g.fill()}
+  txt(g,'atom 0',cx+R+Ad*2.6+4>w-90?w-6:cx+R+Ad*2.6+4,cy+16,COL.orange,12,cx+R+Ad*2.6+4>w-90?'right':'left');
+  // centre text
+  var ph=Math.round(pp),c1,c2;
+  if(th){c1='thermal mixture';c2='sum over '+(N-1)+' modes'}
+  else if(!S.free&&Math.abs(S.k)<1e-12){c1='p = 0';c2='uniform shift, ω = 0'}
+  else if(!pInt){c1="p′ = kL/2π = "+fmt(pp,2);c2='not an integer'}
+  else{c1='p = '+ph;c2=Math.abs(ph)+(Math.abs(ph)===1?' wavelength':' wavelengths')+' round the ring'}
+  txt(g,c1,cx,cy-2,pInt||th?COL.fg:COL.verm,18,'center',true);txt(g,c2,cx,cy+20,COL.muted,13,'center');
+  if(!th&&Math.abs(k)>1e-12)txt(g,k>0?'wave runs counter-clockwise ↺':'wave runs clockwise ↻',cx,cy+40,COL.muted,12,'center');
+ }else{
+  var mx=34,xa=mx,xb=w-mx,cy2=h/2,Ad2=h*0.24;
+  function PX(x){return xa+(xb-xa)*x/N}
+  g.fillStyle=COL.grid;g.globalAlpha=.6;g.fillRect(xa-14,cy2-Ad2-30,10,2*Ad2+60);g.fillRect(xb+4,cy2-Ad2-30,10,2*Ad2+60);g.globalAlpha=1;
+  txt(g,'wall',xa-9,cy2+Ad2+46,COL.muted,11,'center');txt(g,'wall',xb+9,cy2+Ad2+46,COL.muted,11,'center');
+  g.strokeStyle=COL.grid;g.setLineDash([3,4]);g.beginPath();g.moveTo(xa,cy2);g.lineTo(xb,cy2);g.stroke();g.setLineDash([]);
+  if(!th){g.strokeStyle=COL.blue;g.lineWidth=2.2;g.beginPath();for(i=0;i<=400;i++){var x=N*i/400;var yv=Math.sin(k*x)*Math.cos(om*t);(i?g.lineTo:g.moveTo).call(g,PX(x),cy2-yv*Ad2)}g.stroke();
+   if(!pInt){var yE=Math.sin(k*N)*Math.cos(om*t);g.strokeStyle=COL.verm;g.lineWidth=2.5;g.beginPath();g.moveTo(xb,cy2);g.lineTo(xb,cy2-yE*Ad2);g.stroke();g.fillStyle=COL.verm;g.beginPath();g.arc(xb,cy2-yE*Ad2,4,0,TP);g.fill();txt(g,'wave ≠ 0 at wall',xb-8,cy2-Ad2-14,COL.verm,12,'right',true)}}
+  var ar2=Math.max(1.6,Math.min(6,(xb-xa)/N*0.4));
+  for(i=0;i<=N;i++){var uu=th?Core.thermalU(S.tm,i,t):Core.modeU(i,t,k,AMP,'box');g.fillStyle=(i===0||i===N)?COL.muted:COL.fg;g.beginPath();g.arc(PX(i),cy2-Math.max(-1,Math.min(1,uu/AMP))*Ad2,ar2,0,TP);g.fill()}
+  var c1b=th?'thermal mixture of standing waves':(pInt?'p = '+Math.round(pp)+' half-wavelengths between the walls':"p′ = kL/π = "+fmt(pp,2)+' not an integer');
+  txt(g,c1b,w/2,24,pInt||th?COL.fg:COL.verm,16,'center',true);
+  txt(g,'standing wave, nodes fixed: ±k are the same state',w/2,44,COL.muted,12.5,'center');
+ }
+}
+/* ---------- unrolled chain ---------- */
+function drawChain(){
+ var v=fit('chain',380),g=v.g,w=v.w,h=v.h,N=S.N,box=S.bc==='box',k=S.k,om=Core.omega(k),t=S.t,th=S.thermal&&S.tm,i;
+ var m=18,gh=box?1:2,tot=N+2*gh+(box?1:0),s=(w-2*m)/tot,rowY=62;
+ function XN(n){return m+(n+gh+0.5)*s}
+ // longitudinal row
+ txt(g,'actual longitudinal displacements',m,16,COL.muted,12.5,'left');
+ var seamX0=m+gh*s,seamX1=m+(gh+N)*s;
+ if(!box){g.setLineDash([4,3]);g.strokeStyle=COL.line;g.lineWidth=1;g.beginPath();[seamX0,seamX1].forEach(function(x){g.moveTo(x,rowY-26);g.lineTo(x,rowY+26)});g.stroke();g.setLineDash([]);
+  txt(g,'cut',seamX0,rowY-30,COL.muted,11,'center');txt(g,'cut',seamX1,rowY-30,COL.muted,11,'center')}
+ var lo=box?0:-gh,hi=box?N:N-1+gh,ar=Math.max(1.4,Math.min(7,s*0.3));
+ g.strokeStyle=COL.line;g.lineWidth=1;g.beginPath();
+ for(i=lo;i<=hi;i++){var uu=chainU(i);var x=XN(i)+uu*s;(i===lo?g.moveTo:g.lineTo).call(g,x,rowY)}g.stroke();
+ for(i=lo;i<=hi;i++){var ghost=(i<0||i>=N)&&!box,uv=chainU(i),x2=XN(i)+uv*s;
+  var f=Math.max(-1,Math.min(1,uv/AMP));
+  g.beginPath();g.arc(x2,rowY,ar,0,TP);
+  if(ghost){g.strokeStyle=COL.fg;g.lineWidth=1.2;g.stroke()}
+  else{g.fillStyle=f>=0?COL.orange:COL.blue;g.globalAlpha=0.35+0.65*Math.abs(f);g.fill();g.globalAlpha=1;
+   if(i===0&&!box){g.strokeStyle=COL.fg;g.lineWidth=1.5;g.stroke()}}}
+ // faint equilibrium ticks
+ g.strokeStyle=COL.grid;g.beginPath();for(i=lo;i<=hi;i++){g.moveTo(XN(i),rowY+ar+5);g.lineTo(XN(i),rowY+ar+9)}g.stroke();
+ txt(g,'orange: u > 0 (right), blue: u < 0 (left)',w-m,16,COL.muted,12,'right');
+ function chainU(n){ if(box)return uAt(n,t); return uAt(((n%N)+N)%N,t)}
+ // u_n graph
+ var gy0=150,gy1=h-30,gm=(gy0+gy1)/2,gh2=(gy1-gy0)/2,ymax=th?0.8:0.5;
+ function YU(u){return gm-Math.max(-1,Math.min(1,u/ymax))*gh2}
+ txt(g,'u_n(t) against n',m,gy0-12,COL.muted,12.5,'left');
+ g.strokeStyle=COL.grid;g.lineWidth=1;g.beginPath();g.moveTo(m,gm);g.lineTo(w-m,gm);g.stroke();
+ if(!box){g.setLineDash([4,3]);g.strokeStyle=COL.line;g.beginPath();[seamX0,seamX1].forEach(function(x){g.moveTo(x,gy0-4);g.lineTo(x,gy1+4)});g.stroke();g.setLineDash([])}
+ if(!th){g.strokeStyle=COL.blue;g.lineWidth=2;g.beginPath();var first=true;
+  var nlo=box?0:-gh-0.5,nhi=box?N:N-1+gh+0.5;
+  for(i=0;i<=500;i++){var n=nlo+(nhi-nlo)*i/500,u=box?Core.modeU(n,t,k,AMP,'box'):Core.modeU(n,t,k,AMP,'periodic');var x=XN(n);(first?g.moveTo:g.lineTo).call(g,x,YU(u));first=false}g.stroke()}
+ var dr=Math.max(1.5,Math.min(4.5,s*0.32));
+ for(i=lo;i<=hi;i++){var ghost2=(i<0||i>=N)&&!box,uw=chainU(i);g.beginPath();g.arc(XN(i),YU(uw),dr,0,TP);
+  if(ghost2){g.strokeStyle=COL.fg;g.lineWidth=1.3;g.stroke()}else{g.fillStyle=COL.fg;g.fill()}}
+ // mismatch call-out
+ if(!box&&!th){var ex=Core.seamAmplitude(N,k);if(ex>1e-6){txt(g,'curve does not meet its periodic images: max |u(N) − u(0)| = '+fmt(ex,2)+' A',w/2,h-8,COL.verm,12.5,'center',true)}
+  else txt(g,'curve continues smoothly through the cut: u_{n+N} = u_n',w/2,h-8,COL.green,12.5,'center',true)}
+ if(box&&!th){var ex2=Math.abs(Math.sin(k*N));txt(g,ex2>1e-6?'u(N) ≠ 0: wall condition violated':'u = 0 at both walls',w/2,h-8,ex2>1e-6?COL.verm:COL.green,12.5,'center',true)}
+ txt(g,'n',w-m+10,gm+4,COL.muted,12,'right');
+}
+/* ---------- convergence ---------- */
+var ERR={periodic:[],box:[]};
+for(var nn=2;nn<=200;nn++){ERR.periodic[nn]=Math.abs(Core.meanOmega(nn,'periodic')-Core.MEAN_OMEGA_INF);ERR.box[nn]=Math.abs(Core.meanOmega(nn,'box')-Core.MEAN_OMEGA_INF)}
+function drawConv(){
+ var v=fit('conv',230),g=v.g,w=v.w,h=v.h,x0=60,x1=w-16,y0=14,y1=h-36;
+ var lx=function(N){return x0+(Math.log(N)-Math.log(2))/(Math.log(200)-Math.log(2))*(x1-x0)};
+ var emin=-6,emax=0,ly=function(e){return y1-(Math.log10(Math.max(e,1e-12))-emin)/(emax-emin)*(y1-y0)};
+ g.strokeStyle=COL.grid;g.lineWidth=1;g.beginPath();for(var e=emin;e<=emax;e++){g.moveTo(x0,ly(Math.pow(10,e)));g.lineTo(x1,ly(Math.pow(10,e)))}g.stroke();
+ for(e=emin;e<=emax;e+=2)txt(g,'1e'+e,x0-6,ly(Math.pow(10,e))+4,COL.muted,12,'right');
+ [2,5,10,20,50,100,200].forEach(function(N){txt(g,String(N),lx(N),y1+16,COL.muted,12,'center')});
+ txt(g,'N',x1,y1+32,COL.muted,12,'right');
+ var other=S.bc==='box'?'periodic':'box',order=S.bc==='box'?1:2,n;
+ function line(bc,col,wd,al){g.strokeStyle=col;g.lineWidth=wd;g.globalAlpha=al;g.beginPath();for(n=2;n<=200;n++){(n===2?g.moveTo:g.lineTo).call(g,lx(n),ly(ERR[bc][n]))}g.stroke();g.globalAlpha=1}
+ line(other,COL.muted,1.2,.5);line(S.bc,COL.blue,2,1);
+ var c=3*ERR[S.bc][200]*Math.pow(200,order);g.setLineDash([5,4]);g.strokeStyle=COL.orange;g.lineWidth=1.5;g.beginPath();for(n=2;n<=200;n+=2){(n===2?g.moveTo:g.lineTo).call(g,lx(n),ly(c/Math.pow(n,order)))}g.stroke();g.setLineDash([]);
+ txt(g,'∝ 1/N'+(order===2?'²':''),lx(6),ly(c/Math.pow(6,order))-8,COL.orange,12.5,'left',true);
+ txt(g,(S.bc==='box'?'box (N−1 modes)':'ring')+' — solid blue; dashed: guide',x1-4,y0+12,COL.blue,12.5,'right',true);
+ txt(g,(other==='box'?'box':'ring')+' — grey',x1-4,y0+28,COL.muted,12.5,'right');
+ g.strokeStyle=COL.verm;g.lineWidth=1.5;g.beginPath();g.moveTo(lx(S.N),y0);g.lineTo(lx(S.N),y1);g.stroke();g.fillStyle=COL.verm;g.beginPath();g.arc(lx(S.N),ly(ERR[S.bc][S.N]),4.5,0,TP);g.fill();
+ g.save();g.translate(14,(y0+y1)/2);g.rotate(-PI/2);txt(g,'|⟨ω⟩ − 4/π|',0,0,COL.muted,12.5,'center');g.restore();
+}
+
+/* ---------- readouts ---------- */
+function updateInfo(){
+ var N=S.N,box=S.bc==='box',a=ks();
+ $('t-sp').innerHTML=(box?'π/L':'2π/L')+' = '+fmt(Core.spacing(N,S.bc),4)+'/a';
+ $('t-g').innerHTML=(box?'L/π':'L/2π')+' = '+fmt(Core.density(N,S.bc),3)+' a';
+ $('t-n').innerHTML=a.length+(box?' (= N−1 mobile atoms)':' (= N atoms)');
+ var mo=Core.meanOmega(N,S.bc),err=Math.abs(mo-Core.MEAN_OMEGA_INF);
+ $('t-m').innerHTML=fmt(mo,4)+' vs '+fmt(Core.MEAN_OMEGA_INF,4)+' <span>(err '+err.toExponential(1)+')</span>';
+ $('ringH').textContent=box?'Real space: chain between fixed walls':'Real space: the ring of N atoms';
+ var k=S.k,om=Core.omega(k),h='',L=N;
+ if(S.thermal){h='<b>Thermal mixture:</b> every one of the '+(a.length-(box?0:1))+' vibrational modes is excited with a random phase. Any lattice motion is such a sum over the allowed k (plus the k = 0 translation).'}
+ else if(!box){
+  var pp=Core.wavesAround(N,k),pi=Math.round(pp);
+  if(S.free){h='<b class="bad">Disallowed k = '+fmt(k,3)+'/a</b> = '+fmt(k/PI,3)+'π/a. Waves round the ring: kL/2π = p′ = '+fmt(pp,3)+' (not an integer), so the wave cannot join at the seam: max |u<sub>N</sub> − u<sub>0</sub>| = '+fmt(Core.seamAmplitude(N,k),2)+' A. Not a solution of (5.1).'}
+  else{h='<b>Mode p = '+pi+'</b>: k = p·2π/L = '+fmt(k,4)+'/a = '+fmt(k/PI,3)+'π/a;  ω<sub>k</sub> = '+fmt(om,4)+' ω<sub>D</sub>';
+   if(Math.abs(k)<1e-12)h+='<br>k = 0: every atom shifts together, no spring stretched, ω = 0 (a rigid translation; drawn static).';
+   else{h+='<br>λ = 2π/|k| = '+fmt(TP/Math.abs(k),3)+' a = L/|p|; period '+fmt(TP/om,3)+' /ω<sub>D</sub>.';
+    h+='<br><span class="ok">'+Math.abs(pi)+' wavelength'+(Math.abs(pi)===1?'':'s')+' fit exactly round the ring: u<sub>n+N</sub> = u<sub>n</sub> ✓</span>';
+    if(Math.abs(Math.abs(k)-PI)<1e-12)h+='<br>Zone edge k = π/a: neighbours move in antiphase, u<sub>n</sub> = (−1)<sup>n</sup>A cos ωt, ω = 2ω<sub>D</sub> (maximum).';
+    else if(Math.abs(k)>PI/2-1e-9&&N%2===1&&Math.abs(pi)===(N-1)/2)h+='<br>N odd: no state sits exactly at k = π/a; this is the nearest.'}}
+ }else{
+  var pb=Core.wavesAround(N,k)/2*2/ 2; var pr=k*N/PI;
+  if(S.free){h='<b class="bad">Disallowed k = '+fmt(k,3)+'/a</b>: kL/π = '+fmt(pr,3)+' not an integer, so u does not vanish at the right wall (u(N) = '+fmt(Math.sin(k*N),2)+' A sin-phase).'}
+  else{var pi2=Math.round(pr);h='<b>Mode p = '+pi2+'</b>: k = pπ/L = '+fmt(k,4)+'/a = '+fmt(k/PI,3)+'π/a;  ω<sub>k</sub> = '+fmt(om,4)+' ω<sub>D</sub>;  λ = 2L/p = '+fmt(TP/k,3)+' a<br><span class="ok">'+pi2+' half-wavelength'+(pi2===1?'':'s')+' between the walls: u<sub>0</sub> = u<sub>N</sub> = 0 ✓</span>'}
+ }
+ $('modeInfo').innerHTML=h;
+}
+function updateWin(){
+ var box=S.bc==='box';$('t-w').innerHTML=S._cnt+' vs '+fmt(S._exp,2)+' <span>(|diff| = '+fmt(Math.abs(S._cnt-S._exp),2)+' ≤ 1)</span>';
+}
+
+/* ---------- controls ---------- */
+$('Nsl').addEventListener('input',function(){stopInf();setN(NfromSlider(+this.value))});
+$('Nnum').addEventListener('change',function(){stopInf();setN(+this.value||2)});
+$('logN').addEventListener('change',function(){$('Nsl').value=sliderFromN(S.N)});
+$('dksl').addEventListener('input',function(){S.win.dk=+this.value;$('dkval').textContent=(+this.value).toFixed(2);clampWin();dirty=true});
+document.querySelectorAll('input[name=bc]').forEach(function(r){r.addEventListener('change',function(){if(this.checked){setBC(this.value)}})});
+function stopInf(){S.inf=false;$('inf').classList.remove('on');$('inf').textContent='→ ∞'}
+$('inf').addEventListener('click',function(){if(S.inf){stopInf();return}S.inf=true;if(S.N>=200)S.Nf=2;else S.Nf=S.N;$('inf').classList.add('on');$('inf').textContent='■ stop'});
+$('pm').addEventListener('click',function(){selectIdx(-1)});$('pp').addEventListener('click',function(){selectIdx(1)});
+function gotoP(p){var a=ks();for(var i=0;i<a.length;i++)if(a[i].p===p){S.k=a[i].k;S.free=false;dirty=true;return}}
+$('pre0').addEventListener('click',function(){gotoP(S.bc==='box'?1:0)});
+$('pre1').addEventListener('click',function(){gotoP(1)});
+$('preE').addEventListener('click',function(){var a=ks();S.k=a[a.length-1].k;S.free=false;dirty=true});
+$('preX').addEventListener('click',function(){var a=ks(),sp=Core.spacing(S.N,S.bc),base=S.free?S.k:S.k;var nk=Math.min(PI-1e-6,base+0.5*sp);if(S.bc==='box'&&nk<=0)nk=0.5*sp;S.k=nk;S.free=true;dirty=true});
+$('play').addEventListener('click',function(){S.paused=!S.paused;this.textContent=S.paused?'Play':'Pause'});
+$('spd').addEventListener('input',function(){S.speed=+this.value});
+$('therm').addEventListener('change',function(){S.thermal=this.checked;$('reroll').style.display=S.thermal?'':'none';rebuildThermal();dirty=true});
+$('reroll').addEventListener('click',function(){S.seed=(S.seed*7919+13)%100003;rebuildThermal();dirty=true});
+
+/* ---------- main loop ---------- */
+var last=null;
+function frame(ts){
+ if(last===null)last=ts;var dt=Math.min(0.05,(ts-last)/1000);last=ts;
+ if(!S.paused)S.t+=dt*S.speed;
+ if(S.inf){S.Nf*=Math.exp(0.55*dt);if(S.Nf>=200){S.Nf=200;setN(200);stopInf()}else if(Math.round(S.Nf)!==S.N)setN(S.Nf)}
+ drawRec();drawRing();drawChain();drawConv();
+ if(dirty){updateInfo();dirty=false}updateWin();
+ requestAnimationFrame(frame)}
+document.addEventListener('visibilitychange',function(){last=null});
+setN(12);S.k=Core.nearest(12,'periodic',TP*3/12).k;$('Nnum').value=12;
+requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>

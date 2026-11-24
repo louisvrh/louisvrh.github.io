@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Viz · SSP L4 · Lattice waves vs phonons</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
+<style>
+:root{--bg:#fbfbfa;--card:#ffffff;--fg:#1c1f24;--muted:#5a6270;--grid:#d9dde3;--line:#b9c0ca;--accent:#0072B2;--orange:#E69F00;--verm:#D55E00;--green:#009E73;--purple:#CC79A7;--sky:#56B4E9;--btn:#eef1f5;--btnb:#c9d0da}
+@media (prefers-color-scheme:dark){:root{--bg:#14171c;--card:#1b1f26;--fg:#e8eaed;--muted:#a3abb8;--grid:#2e3541;--line:#4a5363;--accent:#56B4E9;--btn:#262c36;--btnb:#3a4352}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+main{max-width:1180px;margin:0 auto;padding:14px 14px 40px}
+h1{font-size:22px;margin:6px 0 2px}
+.q{color:var(--muted);margin:0 0 10px;font-size:15px}
+.eq{background:var(--card);border:1px solid var(--grid);border-radius:10px;padding:8px 14px;margin-bottom:12px;display:grid;gap:2px;font-size:16px;overflow-x:auto}
+.eq div{padding:1px 0}
+.eq .lbl{color:var(--muted);font-size:14px;margin-right:6px}
+.panels{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media(max-width:860px){.panels{grid-template-columns:1fr}}
+.panel{background:var(--card);border:1px solid var(--grid);border-radius:10px;padding:8px 10px 10px;min-width:0}
+.panel h2{font-size:16px;margin:2px 0 4px}
+.panel h2 span{color:var(--muted);font-weight:400;font-size:14px}
+canvas{display:block;width:100%;touch-action:manipulation}
+.legend{font-size:14px;color:var(--muted);display:flex;flex-wrap:wrap;gap:4px 14px;margin-top:4px}
+.legend b{display:inline-block;min-width:14px;text-align:center}
+.strip{background:var(--card);border:1px solid var(--grid);border-left:4px solid var(--accent);border-radius:10px;padding:10px 14px;margin:12px 0;font-size:15px}
+.ctrl{background:var(--card);border:1px solid var(--grid);border-radius:10px;padding:10px 12px;margin-bottom:12px;display:grid;gap:10px}
+.row{display:flex;flex-wrap:wrap;gap:8px 16px;align-items:center}
+.sl{display:flex;flex-direction:column;min-width:210px;flex:1 1 210px}
+.sl label{font-size:14px;margin-bottom:2px}
+.sl input[type=range]{width:100%;accent-color:var(--accent)}
+.seg{display:inline-flex;border:1px solid var(--btnb);border-radius:8px;overflow:hidden}
+.seg button{border:0;border-radius:0;border-right:1px solid var(--btnb)}
+.seg button:last-child{border-right:0}
+button{font:inherit;font-size:14px;background:var(--btn);color:var(--fg);border:1px solid var(--btnb);border-radius:8px;padding:6px 11px;cursor:pointer}
+button:hover{border-color:var(--accent)}
+button[aria-pressed=true]{background:var(--accent);color:#fff;border-color:var(--accent)}
+@media (prefers-color-scheme:dark){button[aria-pressed=true]{color:#0b1118}}
+.grp{font-size:14px;color:var(--muted);margin-right:2px}
+.read{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:8px 18px;background:var(--card);border:1px solid var(--grid);border-radius:10px;padding:10px 14px;margin-bottom:12px;font-size:14.5px}
+.read h3{font-size:14px;margin:0 0 3px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.03em}
+.read div.l{display:flex;justify-content:space-between;gap:10px;border-bottom:1px dotted var(--grid);padding:1px 0}
+.read .v{font-variant-numeric:tabular-nums;text-align:right}
+.regime{grid-column:1/-1;font-weight:600}
+ul.notice{margin:6px 0 12px;padding-left:20px}
+ul.notice li{margin:3px 0}
+details{background:var(--card);border:1px solid var(--grid);border-radius:10px;padding:8px 14px}
+details summary{cursor:pointer;font-weight:600}
+details p,details li{font-size:14.5px}
+.warn{color:var(--muted);font-size:14px}
+</style>
+</head>
+<body>
+<script src="../lab-back.js" defer></script><!-- added for louisvrh.github.io/lab: back link -->
+<main>
+<h1>Lattice waves vs phonons: one vibrational state, two pictures</h1>
+<p class="q">Left: atoms of a ring displaced by a superposition of travelling waves. Right: the same state as a gas of phonons, n<sub>k</sub> quanta of energy ħω<sub>k</sub> in each mode k. Heat the crystal and watch quanta (and wave amplitude) appear. (In 1D the rms displacement grows with T and N, so lower the magnification G at high T.)</p>
+
+<div class="eq" id="eqs">
+  <div><span class="lbl">chain</span><span data-tex="m\ddot u_n=\kappa\,(u_{n+1}-2u_n+u_{n-1}),\qquad \omega_D\equiv\sqrt{\kappa/m}">m ü_n = κ(u_{n+1} − 2u_n + u_{n−1}),  ω_D ≡ √(κ/m)</span></div>
+  <div><span class="lbl">modes</span><span data-tex="u_n(t)=\mathrm{Re}\sum_k \tilde u_k\,e^{i(kna-\omega_k t)},\quad \omega_k=2\omega_D\left|\sin\tfrac{ka}{2}\right|,\quad k=p\,\tfrac{2\pi}{Na}">u_n(t) = Re Σ_k ũ_k e^{i(kna − ω_k t)}, ω_k = 2ω_D|sin(ka/2)|, k = p·2π/(Na)</span></div>
+  <div><span class="lbl">phonons</span><span data-tex="\hat H=\sum_k\hbar\omega_k\!\left(\hat a_k^\dagger\hat a_k+\tfrac12\right),\quad n_B=\frac{1}{e^{\hbar\omega_k/k_BT}-1},\quad \Delta U=\sum_k n_B\,\hbar\omega_k">Ĥ = Σ_k ħω_k(a†a + ½), n_B = 1/(e^{ħω_k/k_BT} − 1), ΔU = Σ_k n_B ħω_k</span></div>
+</div>
+
+<div class="panels">
+  <section class="panel">
+    <h2>Classical lattice waves <span>(real space)</span></h2>
+    <canvas id="cvL" height="330" aria-label="Chain or ring of atoms with displacement waves and a plot of u_n versus n"></canvas>
+    <div class="legend">
+      <span><b style="color:var(--orange)">●</b> displaced right (+u)</span>
+      <span><b style="color:var(--sky)">●</b> displaced left (−u)</span>
+      <span><b style="color:var(--verm)">○</b> reference atom n = 0</span>
+      <span>spring colour: stretched (orange) / compressed (blue)</span>
+    </div>
+    <div class="legend"><span>Displacements are magnified by G for visibility (slider). Faint curve = the wave evaluated between atoms; only integer n are physical.</span></div>
+  </section>
+  <section class="panel">
+    <h2>Phonon picture <span>(modes k, quanta ħω<sub>k</sub>)</span></h2>
+    <canvas id="cvR" height="500" aria-label="Dispersion relation with allowed k points and stacked phonon occupation per mode"></canvas>
+    <div class="legend">
+      <span><b style="color:var(--accent)">●</b> one phonon: energy ħω<sub>k</sub>, crystal momentum ħk</span>
+      <span><b style="color:var(--verm)">—</b> mean ⟨n<sub>k</sub>⟩ = n<sub>B</sub></span>
+      <span><b style="color:var(--purple)">◆</b> average of M resampled snapshots</span>
+      <span><b style="color:var(--green)">▒</b> ħω &lt; k<sub>B</sub>T</span>
+    </div>
+    <div class="legend"><span>Click a mode (either plot) to select it. In the lower plot, click above a stack to create a phonon (a†), on the stack to annihilate one (a).</span></div>
+  </section>
+</div>
+
+<div class="strip" id="strip">
+  <b>Mapping the two pictures.</b> A normal mode is a point k on the dispersion; its wave amplitude grows with how many phonons sit in it (A<sub>k</sub> ∝ √((n<sub>k</sub>+½)/ω<sub>k</sub>)), so the left motion is built from the right-hand occupations. Energy comes in lumps ħω<sub>k</sub>: heating means adding phonons, and at low T only the cheap small-k (low-ω) modes are occupied. Phonons are quanta of collective modes, not little particles bouncing between atoms, and the left animation is the classical-amplitude picture of the same state.
+</div>
+
+<div class="ctrl">
+  <div class="row">
+    <span class="grp">Left panel shows</span>
+    <div class="seg" id="segMode"><button data-v="thermal" aria-pressed="true">Thermal mixture</button><button data-v="single" aria-pressed="false">Single mode</button></div>
+    <span class="grp">driven by</span>
+    <div class="seg" id="segSrc"><button data-v="snap" aria-pressed="true">Snapshot n<sub>k</sub></button><button data-v="mean" aria-pressed="false">Mean ⟨n<sub>k</sub>⟩</button></div>
+    <span class="grp">view</span>
+    <div class="seg" id="segGeom"><button data-v="chain" aria-pressed="true">Chain</button><button data-v="ring" aria-pressed="false">Ring</button></div>
+    <label style="font-size:14px"><input type="checkbox" id="zp" checked> include zero-point ½</label>
+  </div>
+  <div class="row">
+    <div class="sl"><label for="sT" id="lT"></label><input id="sT" type="range" min="0" max="1000" step="1"></div>
+    <div class="sl"><label for="sN" id="lN"></label><input id="sN" type="range" min="8" max="64" step="1" value="16"></div>
+    <div class="sl"><label for="sP" id="lP"></label><input id="sP" type="range" min="-7" max="8" step="1" value="2"></div>
+    <div class="sl"><label for="sS" id="lS"></label><input id="sS" type="range" min="0" max="300" step="1" value="60"></div>
+    <div class="sl"><label for="sG" id="lG"></label><input id="sG" type="range" min="2" max="100" step="1" value="20"></div>
+  </div>
+  <div class="row">
+    <button id="bPlay">Pause</button><button id="bStep">Step</button><button id="bReset">Reset time</button>
+    <span class="grp">Selected mode:</span><button id="bAdd" title="create a phonon in the selected mode">a† create</button><button id="bRem" title="annihilate a phonon in the selected mode">a annihilate</button>
+    <span class="grp">Snapshot:</span><button id="bRes">Resample</button><button id="bRes200">Resample ×200 (average)</button>
+  </div>
+  <div class="row"><span class="grp">Presets:</span>
+    <button id="pSound">Sound (long λ)</button><button id="pEdge">Zone edge ka = π</button><button id="pLow">Low T (frozen out)</button><button id="pMid">Crossover</button><button id="pHigh">High T (equipartition)</button>
+  </div>
+</div>
+
+<div class="read" id="read">
+  <div><h3>Selected mode</h3><div id="rSel"></div></div>
+  <div><h3>Phonon gas</h3><div id="rGas"></div></div>
+  <div><h3>Energy (ħ = k<sub>B</sub> = ω<sub>D</sub> = 1)</h3><div id="rEn"></div></div>
+  <div class="regime" id="rReg"></div>
+</div>
+
+<h3 style="margin:8px 0 2px;font-size:16px">What to notice</h3>
+<ul class="notice">
+  <li>Pick <i>Single mode</i> and step k from small to the zone edge: the wave gets shorter, ω rises as 2|sin(ka/2)|, and at ka = π neighbours move in antiphase (ω = 2ω<sub>D</sub>, the maximum). Compare with the sound line ω ≈ ω<sub>D</sub>a|k| at small k.</li>
+  <li>Press <i>a† create</i> repeatedly: each phonon adds ħω<sub>k</sub> to the energy and the wave amplitude grows as √(n<sub>k</sub>+½), so the lattice motion is literally the occupation numbers on the right.</li>
+  <li>Slide T up in <i>Thermal mixture</i>: the green band (ħω &lt; k<sub>B</sub>T) sweeps up the dispersion, phonons pile into low-k modes first, ΔU follows N k<sub>B</sub>T once k<sub>B</sub>T ≳ 2ħω<sub>D</sub>, and at low T it is exponentially suppressed. Snapshots fluctuate; their average sits on the n<sub>B</sub> curve.</li>
+</ul>
+
+<details>
+  <summary>Model and assumptions</summary>
+  <ul>
+    <li>Monatomic chain, nearest-neighbour harmonic springs, longitudinal motion, N atoms on a ring (periodic BCs), so k = p·2π/(Na) with N allowed values in (−π/a, π/a]. The zone-edge mode ka = π exists only for even N.</li>
+    <li>Units ħ = k<sub>B</sub> = a = m = κ = ω<sub>D</sub> = 1 (so k<sub>B</sub>T is in units of ħω<sub>D</sub>; here ω<sub>D</sub> = √(κ/m) is the spring frequency, not the Debye cut-off).</li>
+    <li>The k = 0 mode (ω = 0) is a rigid translation of the ring, not a vibration; it is drawn as a hollow point and omitted from occupations and ΔU. At high T, ΔU therefore approaches (N−1)k<sub>B</sub>T, which for N ≫ 1 is the equipartition value N k<sub>B</sub>T.</li>
+    <li>Each mode is a travelling wave u<sub>n</sub> = A<sub>k</sub> cos(kna − ω<sub>k</sub>t + φ<sub>k</sub>), A<sub>k</sub> = √(2ħ(n<sub>k</sub>+½)/(N m ω<sub>k</sub>)), so that the classical energy equals ħω<sub>k</sub>(n<sub>k</sub>+½). Phases φ<sub>k</sub> are random and fixed per resample. This is the classical-amplitude picture; it is exact for the chain's equation of motion and evolved analytically (no time-stepping error).</li>
+    <li>Snapshot occupations are drawn from the Bose–Einstein (geometric) distribution P(n) = (1−e<sup>−ħω/k<sub>B</sub>T</sup>) e<sup>−nħω/k<sub>B</sub>T</sup> using fixed uniform random numbers, so raising T only adds phonons. Mean occupation n<sub>B</sub> has no chemical potential because phonon number is not conserved. Manual a† / a edits persist until you resample.</li>
+    <li>Displacements are magnified by G on screen; the readout gives the true rms displacement. Phonons are quanta of the collective modes, not particles travelling between atoms; the dots are a bookkeeping device for n<sub>k</sub>.</li>
+  </ul>
+</details>
+</main>
+
+<script src="core.js"></script>
+<script>
+(function(){
+'use strict';
+const C = Core;
+const TAU = 2*Math.PI;
+const $ = id => document.getElementById(id);
+
+// ---------- KaTeX (MathML output needs no external stylesheet) ----------
+function renderMath(){
+  if(!window.katex) return;
+  document.querySelectorAll('[data-tex]').forEach(el=>{
+    try{ katex.render(el.getAttribute('data-tex'), el, {output:'mathml', throwOnError:false, displayMode:false}); }catch(e){}
+  });
+}
+renderMath();
+
+// ---------- state ----------
+const S = {
+  N:16, T:0.6, p:2, mode:'thermal', src:'snap', geom:'chain', zp:true,
+  speed:0.6, G:0.2, paused:false, t:0,
+  al:null, U:[], phi:[], delta:[], avgSum:[], avgM:0, rng:C.mulberry32(20241112), rngSamp:C.mulberry32(99)
+};
+function sliderToT(v){ return 0.02*Math.pow(250, v/1000); }       // 0.02 .. 5
+function TtoSlider(T){ return Math.round(1000*Math.log(T/0.02)/Math.log(250)); }
+
+function redraw(){ S.al = C.allowedK(S.N); }
+function newPhases(){
+  S.U=[];S.phi=[];
+  for(let i=0;i<S.N;i++){ S.U.push(1-S.rng()); S.phi.push(TAU*S.rng()); }
+  S.delta = new Array(S.N).fill(0);
+}
+function resetAvg(){ S.avgSum = new Array(S.N).fill(0); S.avgM = 0; }
+function idxOfP(p){ return S.al.p.indexOf(p); }
+function selIdx(){ return idxOfP(S.p); }
+function baseOcc(i){ return C.sampleBE(S.al.w[i], S.T, S.U[i]); }
+function occ(i){ if(S.al.w[i]<=1e-12) return 0; return Math.max(0, baseOcc(i)+S.delta[i]); }
+function nbar(i){ return S.al.w[i]<=1e-12 ? 0 : C.nB(S.al.w[i], S.T); }
+function drive(i){ return S.src==='snap' ? occ(i) : nbar(i); }
+function buildModes(){
+  const nArr = [];
+  for(let i=0;i<S.N;i++) nArr.push(drive(i));
+  return C.makeModes(S.al, nArr, S.phi, S.zp, S.mode==='single' ? selIdx() : null);
+}
+function addSample(){            // add one independent BE snapshot to the running average
+  for(let i=0;i<S.N;i++) S.avgSum[i] += C.sampleBE(S.al.w[i], S.T, 1-S.rngSamp());
+  S.avgM++;
+}
+function resample(){
+  for(let i=0;i<S.N;i++){ S.U[i]=1-S.rng(); S.phi[i]=TAU*S.rng(); S.delta[i]=0; }
+  addSample();
+}
+function setN(N){
+  S.N=N; redraw();
+  const sp=$('sP'); sp.min=S.al.pmin; sp.max=S.al.pmax;
+  if(S.p<S.al.pmin||S.p>S.al.pmax||S.p===0) S.p = Math.min(Math.max(S.p,S.al.pmin),S.al.pmax) || 1;
+  if(S.p===0) S.p=1;
+  sp.value=S.p; newPhases(); resetAvg(); syncLabels();
+}
+function setT(T){ S.T=T; resetAvg(); }
+function skipZero(p){ return p===0 ? 1 : p; }
+
+// ---------- canvas helpers ----------
+function fit(cv, h){
+  const dpr=window.devicePixelRatio||1, w=cv.clientWidth;
+  if(cv.__w!==w||cv.__dpr!==dpr||cv.__h!==h){
+    cv.width=Math.round(w*dpr); cv.height=Math.round(h*dpr); cv.style.height=h+'px';
+    cv.__w=w;cv.__dpr=dpr;cv.__h=h;
+  }
+  const ctx=cv.getContext('2d'); ctx.setTransform(dpr,0,0,dpr,0,0);
+  return {ctx,w,h};
+}
+function css(n){ return getComputedStyle(document.documentElement).getPropertyValue(n).trim(); }
+function colors(){ return {fg:css('--fg'),muted:css('--muted'),grid:css('--grid'),line:css('--line'),acc:css('--accent'),orange:css('--orange'),verm:css('--verm'),green:css('--green'),purple:css('--purple'),sky:css('--sky'),card:css('--card')}; }
+function txt(ctx,s,x,y,col,size,al,font){ ctx.fillStyle=col; ctx.font=(font||'')+' '+(size||14)+'px system-ui,sans-serif'; ctx.textAlign=al||'left'; ctx.fillText(s,x,y); }
+function rgba(hex,a){ const m=/^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(hex); if(!m) return hex; return 'rgba('+parseInt(m[1],16)+','+parseInt(m[2],16)+','+parseInt(m[3],16)+','+a+')'; }
+
+// ---------- left panel ----------
+function drawLeft(modes){
+  const cv=$('cvL'); const topH=S.geom==='chain'?118:232; const gy0=topH+52, gy1=gy0+132; const {ctx,w,h}=fit(cv,gy1+46); const c=colors();
+  ctx.clearRect(0,0,w,h);
+  const N=S.N, G=S.G;
+  const st=C.atoms(modes,N,S.t);
+  const uf=n=>st.u[((n%N)+N)%N];
+  const sd=(u)=>Math.min(1,Math.abs(G*u)/0.5);
+  const fillFor=(u)=> u>=0 ? rgba(c.orange,0.25+0.75*sd(u)) : rgba(c.sky,0.25+0.75*sd(u));
+  txt(ctx, S.geom==='chain' ? 'Atoms n = 0 … N−1 (ghost atom n = N ≡ 0: periodic BCs)' : 'Ring of N atoms (n = N ≡ 0), tangential displacement', 8, 18, c.muted, 14);
+
+  const topY0=30, topY1=topH;
+  if(S.geom==='chain'){
+    const mx=26, sp=(w-2*mx-6)/N, y=(topY0+topY1)/2+4, r=Math.max(3,Math.min(10,sp*0.32));
+    const X=n=>mx+n*sp+G*uf(n)*sp;       // n may be N (ghost)
+    // equilibrium ticks
+    ctx.strokeStyle=c.line; ctx.lineWidth=1;
+    for(let n=0;n<=N;n++){ ctx.beginPath(); ctx.moveTo(mx+n*sp,y+r+8); ctx.lineTo(mx+n*sp,y+r+16); ctx.stroke(); }
+    txt(ctx,'equilibrium sites na',mx,y+r+34,c.muted,13);
+    // springs
+    for(let n=0;n<N;n++){
+      const e=uf(n+1)-uf(n); ctx.strokeStyle= e>=0 ? rgba(c.orange,Math.min(1,0.35+Math.abs(G*e)*4)) : rgba(c.sky,Math.min(1,0.35+Math.abs(G*e)*4));
+      ctx.lineWidth=2+Math.min(3,Math.abs(G*e)*8);
+      ctx.beginPath(); ctx.moveTo(X(n),y); ctx.lineTo(X(n+1),y); ctx.stroke();
+    }
+    for(let n=0;n<=N;n++){
+      const u=uf(n);
+      ctx.beginPath(); ctx.arc(X(n),y,r,0,TAU);
+      ctx.fillStyle=fillFor(u); ctx.fill();
+      ctx.lineWidth=(n===0)?3:1.5; ctx.strokeStyle=(n===0)?c.verm:c.fg;
+      if(n===N){ ctx.setLineDash([3,3]); }
+      ctx.stroke(); ctx.setLineDash([]);
+    }
+  } else {
+    const cx=w/2, cy=(topY0+topY1)/2+8, R=Math.min(92,(w-70)/2), r=Math.max(3,Math.min(9,R*TAU/N*0.3));
+    ctx.strokeStyle=c.line; ctx.lineWidth=1; ctx.beginPath(); ctx.arc(cx,cy,R,0,TAU); ctx.stroke();
+    for(let n=0;n<N;n++){ const th=TAU*n/N-Math.PI/2; ctx.beginPath(); ctx.moveTo(cx+(R-8)*Math.cos(th),cy+(R-8)*Math.sin(th)); ctx.lineTo(cx+(R+8)*Math.cos(th),cy+(R+8)*Math.sin(th)); ctx.stroke(); }
+    const P=n=>{ const th=TAU*(n+G*uf(n))/N-Math.PI/2; return [cx+R*Math.cos(th), cy+R*Math.sin(th)]; };
+    for(let n=0;n<N;n++){
+      const a=P(n), b=P(n+1), e=uf(n+1)-uf(n);
+      ctx.strokeStyle= e>=0 ? rgba(c.orange,Math.min(1,0.35+Math.abs(G*e)*4)) : rgba(c.sky,Math.min(1,0.35+Math.abs(G*e)*4));
+      ctx.lineWidth=2+Math.min(3,Math.abs(G*e)*8);
+      ctx.beginPath(); ctx.moveTo(a[0],a[1]); ctx.lineTo(b[0],b[1]); ctx.stroke();
+    }
+    for(let n=0;n<N;n++){
+      const a=P(n); ctx.beginPath(); ctx.arc(a[0],a[1],r,0,TAU); ctx.fillStyle=fillFor(uf(n)); ctx.fill();
+      ctx.lineWidth=(n===0)?3:1.5; ctx.strokeStyle=(n===0)?c.verm:c.fg; ctx.stroke();
+    }
+    txt(ctx,'n = 0',cx,cy-R-14,c.verm,13,'center');
+  }
+
+  // u_n graph
+  const gx0=56, gx1=w-14, gm=(gy0+gy1)/2, Y=1.0;
+  const gX=n=>gx0+(n/N)*(gx1-gx0), gY=v=>gm-(Math.max(-1.05,Math.min(1.05,v))/Y)*(gy1-gy0)/2;
+  ctx.strokeStyle=c.grid; ctx.lineWidth=1;
+  for(const v of [-1,-0.5,0,0.5,1]){ ctx.beginPath(); ctx.moveTo(gx0,gY(v)); ctx.lineTo(gx1,gY(v)); ctx.stroke(); txt(ctx,(v>0?'+':'')+v.toFixed(1),gx0-6,gY(v)+5,c.muted,13,'right'); }
+  txt(ctx,'G·u_n / a',8,gy0-8,c.fg,14);
+  // continuous wave through the atoms
+  ctx.strokeStyle=rgba(c.acc,0.55); ctx.lineWidth=1.5; ctx.setLineDash([4,3]); ctx.beginPath();
+  const M=Math.max(200,N*6);
+  for(let j=0;j<=M;j++){ const x=N*j/M, v=G*C.field(modes,x,S.t); const px=gX(x), py=gY(v); if(j===0) ctx.moveTo(px,py); else ctx.lineTo(px,py); }
+  ctx.stroke(); ctx.setLineDash([]);
+  for(let n=0;n<=N;n++){
+    const v=G*uf(n); ctx.strokeStyle=c.line; ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(gX(n),gm); ctx.lineTo(gX(n),gY(v)); ctx.stroke();
+    ctx.beginPath(); ctx.arc(gX(n),gY(v),n===0||n===N?5:3.6,0,TAU);
+    ctx.fillStyle= n===N ? c.card : fillFor(uf(n)); ctx.fill(); ctx.lineWidth=n===0||n===N?2.5:1.3; ctx.strokeStyle= (n===0||n===N)?c.verm:c.fg; ctx.stroke();
+  }
+  // x ticks
+  const tickStep = N<=16?2:(N<=32?4:8);
+  for(let n=0;n<=N;n+=tickStep){ txt(ctx,String(n),gX(n),gy1+18,c.muted,13,'center'); }
+  txt(ctx,'atom index n',(gx0+gx1)/2,gy1+36,c.fg,14,'center');
+  // title strip
+  const label = S.mode==='single'
+     ? 'Single mode: p = '+S.p+' (k a = '+(S.al.k[selIdx()]).toFixed(3)+'), n = '+(S.src==='snap'?occ(selIdx()):nbar(selIdx()).toFixed(2))
+     : (S.src==='snap' ? 'Thermal mixture, snapshot occupations (random phases)' : 'Thermal mixture, mean occupations ⟨n⟩ = n_B (random phases)');
+  txt(ctx,label,8,gy0-28,c.muted,14,'left');
+  return st;
+}
+
+// ---------- right panel ----------
+const R = {};  // layout for hit-testing
+function drawRight(){
+  const cv=$('cvR'); const {ctx,w,h}=fit(cv,500); const c=colors();
+  ctx.clearRect(0,0,w,h);
+  const N=S.N, al=S.al, T=S.T;
+  const ml=52, mr=14, pw=w-ml-mr;
+  const xk=k=>ml+(k+Math.PI)/TAU*pw;
+  const colW=pw/N;
+  // ---- dispersion ----
+  const d0=34, d1=236, wmax=2.35;
+  const yw=v=>d1-(v/wmax)*(d1-d0);
+  R.d0=d0;R.d1=d1;R.xk=xk;R.colW=colW;
+  txt(ctx,'Dispersion ω_k with the N allowed k',ml,18,c.fg,14,'left');
+  // thermal band
+  const Ty=Math.min(T,wmax);
+  ctx.fillStyle=rgba(c.green,0.16); ctx.fillRect(ml,yw(Ty),pw,d1-yw(Ty));
+  ctx.strokeStyle=c.green; ctx.lineWidth=1.5; ctx.setLineDash([6,4]); ctx.beginPath(); ctx.moveTo(ml,yw(Ty)); ctx.lineTo(ml+pw,yw(Ty)); ctx.stroke(); ctx.setLineDash([]);
+  txt(ctx,T>wmax?('k_BT = '+T.toFixed(2)+' (above plot)'):('k_BT = '+T.toFixed(2)),ml+4,yw(Ty)+(T>wmax?16:-5),c.green,13,'left');
+  // grid & axes
+  ctx.strokeStyle=c.grid; ctx.lineWidth=1;
+  for(const v of [0,0.5,1,1.5,2]){ ctx.beginPath(); ctx.moveTo(ml,yw(v)); ctx.lineTo(ml+pw,yw(v)); ctx.stroke(); txt(ctx,String(v),ml-6,yw(v)+5,c.muted,13,'right'); }
+  txt(ctx,'ω/ω_D',4,d0+2,c.fg,14,'left');
+  for(const f of [-1,-0.5,0,0.5,1]){ const x=xk(f*Math.PI); ctx.beginPath(); ctx.moveTo(x,d0); ctx.lineTo(x,d1); ctx.stroke(); }
+  // sound line
+  ctx.strokeStyle=c.muted; ctx.lineWidth=1.3; ctx.setLineDash([3,4]); ctx.beginPath();
+  for(let j=0;j<=1;j++){ const s=j?1:-1; const kk=Math.min(Math.PI,wmax); ctx.moveTo(xk(0),yw(0)); ctx.lineTo(xk(s*wmax),yw(wmax)); }
+  ctx.stroke(); ctx.setLineDash([]);
+  txt(ctx,'dotted: sound ω ≈ ω_D a|k|',xk(0),yw(1.25),c.muted,13,'center');
+  // curve
+  ctx.strokeStyle=c.fg; ctx.lineWidth=2; ctx.beginPath();
+  for(let j=0;j<=400;j++){ const k=-Math.PI+TAU*j/400; const x=xk(k), y=yw(C.omega(k)); if(j===0) ctx.moveTo(x,y); else ctx.lineTo(x,y); }
+  ctx.stroke();
+  txt(ctx,'ω_max = 2ω_D at ka = π',xk(0),yw(2)-6,c.muted,13,'center');
+  // points
+  const si=selIdx();
+  for(let i=0;i<N;i++){
+    const x=xk(al.k[i]), y=yw(al.w[i]); const n=occ(i), zero=al.w[i]<=1e-12;
+    const rr=zero?4.5:4+Math.min(5,Math.sqrt(n)*1.2);
+    ctx.beginPath(); ctx.arc(x,y,rr,0,TAU);
+    if(zero){ ctx.fillStyle=c.card; ctx.fill(); ctx.strokeStyle=c.fg; ctx.lineWidth=1.5; ctx.stroke(); }
+    else if(n>0){ ctx.fillStyle=c.acc; ctx.fill(); ctx.strokeStyle=c.fg; ctx.lineWidth=1; ctx.stroke(); }
+    else { ctx.fillStyle=c.card; ctx.fill(); ctx.strokeStyle=c.acc; ctx.lineWidth=1.5; ctx.stroke(); }
+    if(i===si){ ctx.beginPath(); ctx.arc(x,y,rr+4,0,TAU); ctx.strokeStyle=c.verm; ctx.lineWidth=2.5; ctx.stroke(); }
+  }
+  // -π endpoint hint
+  ctx.beginPath(); ctx.arc(xk(-Math.PI),yw(2),4,0,TAU); ctx.setLineDash([2,2]); ctx.strokeStyle=c.muted; ctx.lineWidth=1; ctx.stroke(); ctx.setLineDash([]);
+  // k axis labels
+  const labs=[['−π/a',-1],['−π/2a',-0.5],['0',0],['π/2a',0.5],['π/a',1]];
+  for(const [s,f] of labs) txt(ctx,s,xk(f*Math.PI),d1+17,c.muted,13,'center');
+  txt(ctx,'wavevector k  (first Brillouin zone)',ml+pw/2,d1+34,c.fg,14,'center');
+
+  // ---- occupation stacks ----
+  const o0=300, o1=452;
+  R.o0=o0;R.o1=o1;
+  txt(ctx,'Occupation n_k (each dot = one phonon, energy ħω_k)',ml,o0-14,c.fg,14,'left');
+  let maxN=3;
+  for(let i=0;i<N;i++){ maxN=Math.max(maxN,occ(i)); if(al.w[i]>1e-12) maxN=Math.max(maxN,Math.min(60,nbar(i))); }
+  const ymax=Math.ceil(maxN*1.05); R.ymax=ymax;
+  const yn=v=>o1-(v/ymax)*(o1-o0);
+  R.yn=yn;
+  // selected column highlight
+  if(si>=0){ ctx.fillStyle=rgba(c.verm,0.10); ctx.fillRect(xk(al.k[si])-colW/2,o0,colW,o1-o0); }
+  ctx.strokeStyle=c.grid; ctx.lineWidth=1;
+  const step = ymax<=6?1:(ymax<=12?2:(ymax<=30?5:10));
+  for(let v=0;v<=ymax;v+=step){ ctx.beginPath(); ctx.moveTo(ml,yn(v)); ctx.lineTo(ml+pw,yn(v)); ctx.stroke(); txt(ctx,String(v),ml-6,yn(v)+5,c.muted,13,'right'); }
+  txt(ctx,'n_k',6,o0+4,c.fg,14,'left');
+  // dots
+  const dd=Math.min(colW*0.86,((o1-o0)/ymax)*0.92);
+  R.dd=dd;
+  for(let i=0;i<N;i++){
+    const n=occ(i), x=xk(al.k[i]);
+    for(let j=0;j<n;j++){
+      const y=o1-(j+0.5)*((o1-o0)/ymax);
+      if(y<o0-2) break;
+      ctx.beginPath(); ctx.arc(x,y,Math.max(1.2,dd/2),0,TAU); ctx.fillStyle=c.acc; ctx.fill();
+    }
+  }
+  // mean curve
+  ctx.save(); ctx.beginPath(); ctx.rect(ml,o0-2,pw,o1-o0+4); ctx.clip();
+  ctx.strokeStyle=c.verm; ctx.lineWidth=2.2; ctx.beginPath(); let started=false;
+  for(let j=0;j<=800;j++){ const k=-Math.PI+TAU*j/800; if(Math.abs(k)<0.5*TAU/N) { started=false; continue; } const v=C.nB(C.omega(k),T); const y=yn(Math.min(v,ymax*1.2)); const x=xk(k); if(!started){ctx.moveTo(x,y);started=true;} else ctx.lineTo(x,y); }
+  ctx.stroke(); ctx.restore();
+  // averaged snapshots
+  if(S.avgM>0){
+    for(let i=0;i<N;i++){ if(al.w[i]<=1e-12) continue; const v=S.avgSum[i]/S.avgM, x=xk(al.k[i]), y=yn(Math.min(v,ymax));
+      ctx.beginPath(); ctx.moveTo(x,y-6); ctx.lineTo(x+5,y); ctx.lineTo(x,y+6); ctx.lineTo(x-5,y); ctx.closePath(); ctx.fillStyle=c.purple; ctx.fill(); ctx.strokeStyle=c.fg; ctx.lineWidth=0.8; ctx.stroke(); }
+    txt(ctx,'average of M = '+S.avgM+' snapshots',ml+pw-4,o0+16,c.purple,13,'right');
+  }
+  // axis
+  ctx.strokeStyle=c.fg; ctx.lineWidth=1.2; ctx.beginPath(); ctx.moveTo(ml,o1); ctx.lineTo(ml+pw,o1); ctx.stroke();
+  for(const [s,f] of labs) txt(ctx,s,xk(f*Math.PI),o1+17,c.muted,13,'center');
+  txt(ctx,'wavevector k',ml+pw/2,o1+36,c.fg,14,'center');
+}
+
+// ---------- readouts ----------
+function fmt(x,d){ return (Math.abs(x)>=1e4||(Math.abs(x)<1e-3&&x!==0)) ? x.toExponential(2) : x.toFixed(d===undefined?3:d); }
+function row(l,v){ return '<div class="l"><span>'+l+'</span><span class="v">'+v+'</span></div>'; }
+let lastRead=0;
+function readouts(modes, st){
+  const al=S.al, N=S.N, T=S.T, si=selIdx(), i=si;
+  const w=al.w[i], k=al.k[i];
+  const nbSel=C.nB(w,T), nsel=occ(i);
+  const Asel = C.amp(S.src==='snap'?nsel:nbSel, w, N, S.zp);
+  $('rSel').innerHTML =
+    row('k a  (p = '+S.p+')', fmt(k)+' = '+(k/Math.PI).toFixed(3)+'π') +
+    row('ω<sub>k</sub> / ω<sub>D</sub> = 2|sin(ka/2)|', fmt(w)) +
+    row('ω<sub>D</sub>a|k| (sound line)', fmt(Math.abs(k))) +
+    row('phonon energy ħω<sub>k</sub>', fmt(w)) +
+    row('crystal momentum ħk', fmt(k)) +
+    row('⟨n<sub>k</sub>⟩ = n<sub>B</sub>', fmt(nbSel)) +
+    row('snapshot n<sub>k</sub>', String(nsel)) +
+    row('wave amplitude A<sub>k</sub>/a (true)', fmt(Asel));
+  let Nph=0,Nsn=0,Usn=0, Uavg=0;
+  for(let j=0;j<N;j++){ if(al.w[j]<=1e-12) continue; Nph+=C.nB(al.w[j],T); const o=occ(j); Nsn+=o; Usn+=o*al.w[j]; }
+  const Um=C.deltaU(N,T), eq=N*T;
+  $('rGas').innerHTML =
+    row('total phonons, mean Σ n<sub>B</sub>', fmt(Nph,2)) +
+    row('total phonons, this snapshot', String(Nsn)) +
+    row('ΔU = Σ n<sub>B</sub>ħω<sub>k</sub> (mean)', fmt(Um,2)) +
+    row('ΔU of this snapshot', fmt(Usn,2)) +
+    row('equipartition N k<sub>B</sub>T', fmt(eq,2)) +
+    row('ΔU / (N k<sub>B</sub>T)', fmt(Um/eq,3));
+  const nArr=[]; for(let j=0;j<N;j++) nArr.push(drive(j));
+  const only = S.mode==='single' ? i : null;
+  let Eq=0; for(let j=0;j<N;j++){ if(al.w[j]<=1e-12) continue; if(only!==null&&j!==only) continue; Eq+=al.w[j]*(nArr[j]+(S.zp?0.5:0)); }
+  const Ecl=C.energy(modes,N,S.t);
+  let ms=0; for(let n=0;n<N;n++) ms+=st.u[n]*st.u[n];
+  $('rEn').innerHTML =
+    row('E from atoms (Σ ½mv² + ½κΔu²)', fmt(Ecl,4)) +
+    row('Σ ħω<sub>k</sub>(n<sub>k</sub> + ½)', fmt(Eq,4)) +
+    row('rms displacement √⟨u²⟩ / a', fmt(Math.sqrt(ms/N),3)) +
+    row('time t · ω<sub>D</sub>', fmt(S.t,1)) +
+    row('ω<sub>max</sub> / ω<sub>D</sub>', '2');
+  $('rReg').textContent = 'Regime (k_BT/ħω_D = '+T.toFixed(2)+'): '+C.regime(T);
+}
+
+// ---------- labels & controls ----------
+function syncLabels(){
+  const al=S.al, i=selIdx();
+  $('lT').innerHTML='k<sub>B</sub>T / ħω<sub>D</sub> = '+S.T.toFixed(2)+' &nbsp;(log scale)';
+  $('lN').textContent='N = '+S.N+' atoms (ring)';
+  $('lP').innerHTML='mode p = '+S.p+' &nbsp;→ ka = '+al.k[i].toFixed(3)+', ω = '+al.w[i].toFixed(3)+' ω<sub>D</sub>';
+  $('lS').textContent='animation speed = '+(S.speed).toFixed(2)+' ω_D t per second';
+  $('lG').textContent='display magnification G = ×'+S.G.toFixed(2);
+}
+function setSeg(id,val){ document.querySelectorAll('#'+id+' button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.v===val?'true':'false')); }
+function seg(id,cb){ $(id).addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b) return; cb(b.dataset.v); setSeg(id,b.dataset.v); }); }
+function ensureOcc(){ const i=selIdx(); if(S.mode==='single' && S.src==='snap' && occ(i)<3 && S.al.w[i]>1e-12){ S.delta[i]=3-baseOcc(i); } }
+function setMode(m){
+  S.mode=m; setSeg('segMode',m);
+  if(m==='single'){ if(S.al.w[selIdx()]<=1e-12) selectP(1); ensureOcc(); if(S.G<0.4) setG(0.5); }
+  else { if(S.G>0.3) setG(0.2); }
+  update();
+}
+function setG(g){ S.G=g; $('sG').value=Math.round(g*100); }
+function selectP(p){ if(p===0) p=1; S.p=p; $('sP').value=p; if(S.mode==='single') ensureOcc(); syncLabels(); }
+function setSrc(v){ S.src=v; setSeg('segSrc',v); }
+function setTslider(T){ setT(T); $('sT').value=TtoSlider(T); }
+function edit(i,d){
+  if(S.al.w[i]<=1e-12) return;
+  if(d>0){ S.delta[i]++; } else if(occ(i)>0){ S.delta[i]--; }
+  if(S.src==='mean'){ setSrc('snap'); }
+}
+let needDraw=true;
+function update(){ syncLabels(); needDraw=true; }
+
+$('sT').addEventListener('input',e=>{ setT(sliderToT(+e.target.value)); update(); });
+$('sN').addEventListener('input',e=>{ setN(+e.target.value); if(S.mode==='single') ensureOcc(); update(); });
+$('sP').addEventListener('input',e=>{ selectP(+e.target.value); update(); });
+$('sS').addEventListener('input',e=>{ S.speed=+e.target.value/100; update(); });
+$('sG').addEventListener('input',e=>{ S.G=+e.target.value/100; update(); });
+$('zp').addEventListener('change',e=>{ S.zp=e.target.checked; update(); });
+seg('segMode',m=>setMode(m));
+seg('segSrc',v=>{ S.src=v; if(S.mode==='single') ensureOcc(); update(); });
+seg('segGeom',v=>{ S.geom=v; update(); });
+$('bPlay').addEventListener('click',()=>{ S.paused=!S.paused; $('bPlay').textContent=S.paused?'Play':'Pause'; });
+$('bStep').addEventListener('click',()=>{ S.t+=0.1; if(!S.paused){ S.paused=true; $('bPlay').textContent='Play'; } update(); });
+$('bReset').addEventListener('click',()=>{ S.t=0; update(); });
+$('bAdd').addEventListener('click',()=>{ edit(selIdx(),+1); update(); });
+$('bRem').addEventListener('click',()=>{ edit(selIdx(),-1); update(); });
+$('bRes').addEventListener('click',()=>{ resample(); if(S.mode==='single') ensureOcc(); update(); });
+$('bRes200').addEventListener('click',()=>{ resample(); for(let j=0;j<199;j++) addSample(); if(S.mode==='single') ensureOcc(); update(); });
+
+function preset(o){
+  if(o.N && o.N!==S.N){ $('sN').value=o.N; setN(o.N); }
+  if(o.zp!==undefined){ S.zp=o.zp; $('zp').checked=o.zp; }
+  if(o.T!==undefined) setTslider(o.T);
+  if(o.src){ setSrc(o.src); }
+  if(o.p!==undefined) selectP(typeof o.p==='function'?o.p():o.p);
+  if(o.G!==undefined) setG(o.G);
+  if(o.mode) { S.mode=o.mode; setSeg('segMode',o.mode); if(o.mode==='single') ensureOcc(); }
+  update();
+}
+$('pSound').addEventListener('click',()=>preset({mode:'single',src:'snap',p:1,G:0.5,zp:true}));
+$('pEdge').addEventListener('click',()=>preset({mode:'single',src:'snap',N:S.N%2?16:S.N,p:()=>Math.floor(S.N/2),G:0.5,zp:true}));
+$('pLow').addEventListener('click',()=>{ preset({mode:'thermal',src:'snap',T:0.25,zp:false,G:0.5}); resample(); update(); });
+$('pMid').addEventListener('click',()=>preset({mode:'thermal',src:'snap',T:1,zp:true,G:0.15}));
+$('pHigh').addEventListener('click',()=>{ preset({mode:'thermal',src:'snap',T:5,zp:true,G:0.05}); });
+
+// click / tap on right canvas
+$('cvR').addEventListener('pointerdown',e=>{
+  const cv=$('cvR'), rect=cv.getBoundingClientRect(), x=e.clientX-rect.left, y=e.clientY-rect.top;
+  if(!R.xk) return;
+  let best=-1,bd=1e9;
+  for(let i=0;i<S.N;i++){ const d=Math.abs(R.xk(S.al.k[i])-x); if(d<bd){bd=d;best=i;} }
+  if(best<0||bd>R.colW*0.8+6) return;
+  const lower = y>=R.o0-14 && y<=R.o1+6;
+  selectP(S.al.p[best]);
+  if(lower && S.al.w[best]>1e-12){
+    const n=occ(best), topY=R.yn(Math.min(n,R.ymax));
+    if(y<topY-2 || n===0) edit(best,+1); else edit(best,-1);
+  }
+  update();
+});
+
+// ---------- loop ----------
+let last=performance.now(), tick=0;
+function frame(now){
+  const dt=Math.min(0.05,(now-last)/1000); last=now;
+  if(!S.paused && !document.hidden){ S.t+=dt*S.speed; needDraw=true; }
+  if(needDraw){
+    needDraw=false;
+    const modes=buildModes();
+    const st=drawLeft(modes);
+    drawRight();
+    if(now-lastRead>100){ lastRead=now; readouts(modes,st); }
+  }
+  requestAnimationFrame(frame);
+}
+document.addEventListener('visibilitychange',()=>{ last=performance.now(); });
+window.addEventListener('resize',()=>{ needDraw=true; });
+if(window.matchMedia) matchMedia('(prefers-color-scheme: dark)').addEventListener('change',()=>{ needDraw=true; });
+
+// init
+redraw();
+{ const sp=$('sP'); sp.min=S.al.pmin; sp.max=S.al.pmax; sp.value=S.p; }
+newPhases(); resetAvg(); addSample();
+$('sT').value=TtoSlider(S.T); $('sG').value=Math.round(S.G*100);
+syncLabels();
+// expose for testing
+window.__viz={S,C,occ,nbar,buildModes,selectP,setN,setTslider,setMode,resample,edit,update};
+requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
