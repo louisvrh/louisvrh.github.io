@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Why the phase difference is q·R</title>
+<style>
+body{font-family:Georgia,serif;margin:0;padding:14px;background:#fafaf7;color:#222}
+.wrap{max-width:720px;margin:auto}
+svg{width:100%;background:#fff;border:1px solid #ddd;display:block;margin:8px 0}
+ol{font-size:15px;line-height:1.5;padding-left:20px}
+.in{color:#c0392b;font-weight:bold}.out{color:#1f6fb2;font-weight:bold}
+@media (prefers-color-scheme:dark){body{background:#1b1b1b;color:#ddd}svg{background:#fff}}
+</style></head><body>
+<script src="../lab-back.js" defer></script><!-- added for louisvrh.github.io/lab: back link --><div class="wrap">
+<h3 style="margin:4px 0">Why the phase difference between two atoms is q·R</h3>
+<svg id="a" viewBox="-5.2 -3.6 13.4 7.4"></svg>
+<ol>
+<li><b>Start equal.</b> Both incoming rays start in phase on wavefront A (a line ⟂ k<sub>in</sub>).</li>
+<li><span class="in">Extra path in, d = k̂<sub>in</sub>·R</span>: the ray to R has to travel this far past the dashed line through O. That is the projection of R onto the incoming direction.</li>
+<li><span class="out">Extra path out, d′ = k̂<sub>out</sub>·R</span>: on the way out it is the ray from <i>O</i> that is longer, by the projection of R onto the outgoing direction. Both rays end on wavefront B (⟂ k<sub>out</sub>, towards the far-away detector).</li>
+<li><b>Net.</b> The R-ray travels d − d′ further. Multiply by 2π/λ = |k|: phase difference = k<sub>in</sub>·R − k<sub>out</sub>·R = −(k<sub>out</sub> − k<sub>in</sub>)·R = <b>−q·R</b>.</li>
+</ol>
+<svg id="b" viewBox="-0.6 -3.2 7 4.6" style="max-width:420px;margin:auto"></svg>
+<p style="font-size:15px">Bottom: q = k<sub>out</sub> − k<sub>in</sub> is the vector you must add to k<sub>in</sub> to get k<sub>out</sub>. Because |k<sub>in</sub>| = |k<sub>out</sub>| (elastic), the triangle is isosceles. If q·R is a multiple of 2π for every atom R, all the rays arrive in step and you get a bright beam: that is q = G.</p>
+</div>
+<script>
+function fit(id,h){const e=document.getElementById(id);e.innerHTML=h;const b=e.getBBox(),p=0.3;e.setAttribute('viewBox',`${b.x-p} ${b.y-p} ${b.width+2*p} ${b.height+2*p}`)}
+const P=(x,y)=>[x,-y],add=(a,b)=>[a[0]+b[0],a[1]+b[1]],mul=(a,s)=>[a[0]*s,a[1]*s],dot=(a,b)=>a[0]*b[0]+a[1]*b[1],perp=a=>[-a[1],a[0]];
+function line(a,b,c,w,ex=''){const A=P(...a),B=P(...b);return `<line x1="${A[0]}" y1="${A[1]}" x2="${B[0]}" y2="${B[1]}" stroke="${c}" stroke-width="${w}" ${ex}/>`}
+function txt(p,t,c='#222',s=0.32,ex=''){const A=P(...p);return `<text x="${A[0]}" y="${A[1]}" fill="${c}" font-size="${s}" font-family="Georgia" ${ex}>${t}</text>`}
+const mk=(id,c)=>`<marker id="${id}" markerWidth="5" markerHeight="5" refX="4" refY="2.5" orient="auto"><path d="M0,0L5,2.5L0,5z" fill="${c}"/></marker>`;
+// panel A
+const th=Math.PI/6, ki=[Math.cos(-th),Math.sin(-th)], ko=[Math.cos(th),Math.sin(th)], O=[0,0], R=[3,1];
+const d=dot(ki,R), dp=dot(ko,R), Lin=3, Lout=4.2;
+let s=`<defs>${mk('k','#444')}${mk('r','#c0392b')}${mk('u','#1f6fb2')}</defs>`;
+const startO=add(O,mul(ki,-Lin)), startR=add(R,mul(ki,-(Lin+d)));
+s+=line(add(startO,mul(perp(ki),-1.2)),add(startR,mul(perp(ki),1.2)),'#999',0.03,'stroke-dasharray="0.12 0.08"')+txt(add(startO,mul(perp(ki),-1.6)),'wavefront A','#777',0.28);
+s+=line(add(O,mul(perp(ki),-0.8)),add(O,mul(perp(ki),3.6)),'#c0392b',0.025,'stroke-dasharray="0.1 0.1"');
+const fR=add(R,mul(ki,-d));
+s+=line(startO,O,'#444',0.04,'marker-end="url(#k)"')+line(startR,fR,'#444',0.04)+line(fR,R,'#c0392b',0.09);
+s+=txt(add(mul(add(fR,R),0.5),add(mul(perp(ki),0.35),[-0.2,0])),'d = k̂ᵢₙ·R','#c0392b',0.34);
+const endO=add(O,mul(ko,Lout)), endR=add(R,mul(ko,Lout-dp)), gR=add(O,mul(ko,dp));
+s+=line(add(endO,mul(perp(ko),1.0)),add(endR,mul(perp(ko),-1.0)),'#999',0.03,'stroke-dasharray="0.12 0.08"')+txt(add(endO,mul(perp(ko),1.2)),'wavefront B → detector','#777',0.28);
+s+=line(add(R,mul(perp(ko),-0.5)),add(R,mul(perp(ko),3.8)),'#1f6fb2',0.025,'stroke-dasharray="0.1 0.1"');
+s+=line(O,gR,'#1f6fb2',0.09)+line(gR,endO,'#444',0.04,'marker-end="url(#k)"')+line(R,endR,'#444',0.04,'marker-end="url(#k)"');
+s+=txt(add(mul(gR,0.5),[-1.9,0.35]),"d′ = k̂ₒᵤₜ·R",'#1f6fb2',0.34);
+s+=line(O,R,'#2a7d3a',0.035,'stroke-dasharray="0.08 0.06"')+txt(mul(R,0.55),'R','#2a7d3a',0.4,'font-style="italic"');
+for(const [p,l] of [[O,'O'],[R,'atom at R']]){const A=P(...p);s+=`<circle cx="${A[0]}" cy="${A[1]}" r="0.17" fill="#333"/>`;s+=txt(add(p,[0.1,-0.45]),l,'#222',0.3)}
+s+=txt(add(startO,[-0.2,0.4]),'k<tspan font-size="0.22">in</tspan>','#444',0.36,'font-style="italic"')+txt(add(endR,[0.1,-0.2]),'k<tspan font-size="0.22">out</tspan>','#444',0.36,'font-style="italic"');
+fit('a',s);
+// panel B
+const K=3; let t=`<defs>${mk('k2','#444')}${mk('q','#8e44ad')}</defs>`;
+const o=[0.2,-2.6], a1=add(o,mul(ki,-K)); // draw k_in pointing into origin? draw both from common tail
+const T=[0.3,-1.2], hin=add(T,mul([Math.cos(-th),Math.sin(-th)],K)), hout=add(T,mul(ko,K));
+t+=line(T,hin,'#c0392b',0.06,'marker-end="url(#r)"')+line(T,hout,'#1f6fb2',0.06,'marker-end="url(#u)"')+line(hin,hout,'#8e44ad',0.07,'marker-end="url(#q)"');
+t=t.replace('<defs>',`<defs>${mk('r','#c0392b')}${mk('u','#1f6fb2')}`);
+t+=txt(add(mul(add(T,hin),0.5),[-0.3,-0.45]),'k<tspan font-size="0.24">in</tspan>','#c0392b',0.4,'font-style="italic"');
+t+=txt(add(mul(add(T,hout),0.5),[-0.5,0.3]),'k<tspan font-size="0.24">out</tspan>','#1f6fb2',0.4,'font-style="italic"');
+t+=txt(add(mul(add(hin,hout),0.5),[0.2,0]),'q = k<tspan font-size="0.24">out</tspan> − k<tspan font-size="0.24">in</tspan>','#8e44ad',0.36);
+t+=txt(add(T,[0.55,0.06]),'2θ','#555',0.3);
+fit('b',t);
+</script></body></html>

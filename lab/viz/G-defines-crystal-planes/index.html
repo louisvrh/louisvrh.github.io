@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>G defines crystal planes</title>
+<style>
+body{font-family:Georgia,serif;margin:0;padding:16px;background:#fafaf7;color:#222;text-align:center}
+svg{max-width:420px;width:100%;background:#fff;border:1px solid #ddd}
+button{font:inherit;margin:3px;padding:4px 10px;border:1px solid #888;background:#fff;border-radius:4px;cursor:pointer}
+button.on{background:#1f5fa8;color:#fff}
+p{max-width:420px;margin:8px auto;font-size:15px}
+@media (prefers-color-scheme:dark){body{background:#1b1b1b;color:#ddd}svg{background:#111;border-color:#444}button{background:#222;color:#ddd}}
+</style></head><body>
+<script src="../lab-back.js" defer></script><!-- added for louisvrh.github.io/lab: back link -->
+<div id="btns"></div>
+<svg id="s" viewBox="-5.5 -5.5 11 11"></svg>
+<p id="t"></p>
+<script>
+const Gs=[[1,0],[0,1],[1,1],[1,-1],[2,1],[1,2],[3,1]];
+let cur=Gs[2];
+const btns=document.getElementById('btns');
+Gs.forEach(g=>{const b=document.createElement('button');b.textContent=`[${g[0]},${g[1]}]`;b.onclick=()=>{cur=g;draw()};btns.appendChild(b)});
+function draw(){
+  [...btns.children].forEach((b,i)=>b.className=Gs[i]===cur?'on':'');
+  const [h,k]=cur,n=Math.hypot(h,k),ux=h/n,uy=k/n,d=1/n; let s='';
+  // planes: G·R = 2πm  ->  h x + k y = m  (a=1)
+  for(let m=-12;m<=12;m++){const c=m*d,px=-uy,py=ux;
+    s+=`<line x1="${c*ux-8*px}" y1="${-(c*uy-8*py)}" x2="${c*ux+8*px}" y2="${-(c*uy+8*py)}" stroke="${m==0?'#c33':'#e7a33a'}" stroke-width="${m==0?0.06:0.04}" opacity="0.8"/>`}
+  for(let x=-5;x<=5;x++)for(let y=-5;y<=5;y++){const on=(h*x+k*y)%1===0;
+    s+=`<circle cx="${x}" cy="${-y}" r="0.13" fill="#1f5fa8"/>`}
+  const L=2.2;
+  s+=`<defs><marker id="a" markerWidth="4" markerHeight="4" refX="2" refY="2" orient="auto"><path d="M0,0L4,2L0,4z" fill="#2a9d4a"/></marker></defs>`;
+  s+=`<line x1="0" y1="0" x2="${L*ux}" y2="${-L*uy}" stroke="#2a9d4a" stroke-width="0.09" marker-end="url(#a)"/>`;
+  s+=`<text x="${L*ux+0.25}" y="${-L*uy-0.15}" font-size="0.6" fill="#2a9d4a" font-style="italic">G</text>`;
+  document.getElementById('s').innerHTML=s;
+  document.getElementById('t').innerHTML=`Square lattice (a = 1). <b style="color:#2a9d4a">G</b> = (2π/a)(${h}, ${k}). Every atom lies on a plane G·R = 2πm (orange; red is m = 0). The planes are normal to G, spaced d = 2π/|G| = a/√${h*h+k*k} ≈ ${d.toFixed(3)}a.`;
+}
+draw();
+</script></body></html>

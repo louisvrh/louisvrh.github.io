@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Physics Skill Tree</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* Layout idea: lanes = subject tracks (rows), bands = academic years (columns); prerequisites flow left to right like a game tech tree. Single dark "map" world. */
+:root{
+  --bg:#0d1117; --panel:#151b24; --panel-2:#1b2330; --line:#2a3443; --ink:#e6ecf3; --muted:#8b98a9;
+  --gold:#f2c14e; --ok:#58d38c;
+  --display:"Chakra Petch", "Segoe UI", system-ui, sans-serif;
+  --body:"IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --mono:"IBM Plex Mono", ui-monospace, Menlo, monospace;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.45}
+button{font:inherit;color:inherit}
+button:focus-visible,input:focus-visible,a:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+h1,h2,h3{font-family:var(--display);text-wrap:balance;margin:0;letter-spacing:.01em}
+
+header.top{display:grid;grid-template-columns:1fr auto;gap:16px 24px;padding:18px 20px 14px;border-bottom:1px solid var(--line);background:linear-gradient(180deg,#121924,#0d1117)}
+.title-row{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
+.title-row h1{font-size:26px;font-weight:700}
+.sub{color:var(--muted);font-size:13px}
+.xp{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-top:10px}
+.lvl{font-family:var(--display);font-weight:700;font-size:15px;padding:4px 10px;border:1px solid var(--gold);color:var(--gold);border-radius:4px;letter-spacing:.06em}
+.bar{position:relative;height:10px;width:min(360px,60vw);background:var(--panel-2);border-radius:6px;overflow:hidden;border:1px solid var(--line)}
+.bar>i{position:absolute;inset:0 auto 0 0;background:linear-gradient(90deg,#c99a2e,var(--gold));border-radius:6px}
+.xpnum{font-family:var(--mono);font-size:12.5px;color:var(--muted);font-variant-numeric:tabular-nums}
+.tracks-mini{display:flex;gap:10px 16px;flex-wrap:wrap;margin-top:10px}
+.tm{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted)}
+.tm b{display:inline-block;width:46px;height:5px;border-radius:3px;background:var(--panel-2);position:relative;overflow:hidden}
+.tm b i{position:absolute;inset:0 auto 0 0}
+.controls{display:flex;flex-direction:column;align-items:flex-end;gap:8px}
+.tabs{display:flex;border:1px solid var(--line);border-radius:6px;overflow:hidden}
+.tabs button{background:transparent;border:0;padding:7px 14px;cursor:pointer;font-family:var(--display);font-weight:600;font-size:13.5px;color:var(--muted)}
+.tabs button[aria-selected="true"]{background:var(--panel-2);color:var(--ink)}
+#search{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:7px 10px;color:var(--ink);width:240px;font-size:13.5px}
+.save{font-family:var(--mono);font-size:11.5px;color:var(--muted)}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--muted);padding:10px 20px;border-bottom:1px solid var(--line)}
+.legend span{display:flex;align-items:center;gap:6px}
+.dot{width:10px;height:10px;border-radius:50%;display:inline-block;border:2px solid var(--muted)}
+.dot.locked{border-style:dashed;opacity:.6}
+.dot.ready{border-color:var(--ink)}
+.dot.progress{border-color:var(--ok);background:conic-gradient(var(--ok) 0 50%,transparent 0)}
+.dot.mastered{border-color:var(--gold);background:var(--gold)}
+
+/* tree */
+.treewrap{display:flex;align-items:stretch}
+.lanes{flex:0 0 150px;border-right:1px solid var(--line);background:var(--bg);position:relative;z-index:2}
+.lane-label{position:absolute;left:0;right:0;padding:10px 12px;display:flex;flex-direction:column;gap:4px;border-bottom:1px solid var(--line)}
+.lane-label h3{font-size:14px;font-weight:600;line-height:1.2}
+.lane-label .pct{font-family:var(--mono);font-size:11.5px;color:var(--muted)}
+.lane-label::before{content:"";position:absolute;left:0;top:10px;bottom:10px;width:3px;border-radius:2px;background:var(--c)}
+.scroller{flex:1;overflow-x:auto;overflow-y:hidden;position:relative}
+.canvas{position:relative}
+.band{position:absolute;top:0;bottom:0;border-right:1px solid var(--line)}
+.band:nth-child(even){background:rgba(255,255,255,.012)}
+.band-h{position:sticky;top:0;padding:10px 14px;font-family:var(--display);font-weight:700;font-size:13px;letter-spacing:.14em;color:var(--muted)}
+.band-h small{display:block;font-family:var(--body);font-weight:400;letter-spacing:0;font-size:11.5px}
+.lane-sep{position:absolute;left:0;right:0;height:1px;background:var(--line)}
+svg.edges{position:absolute;inset:0;pointer-events:none;overflow:visible}
+svg.edges path{fill:none;stroke-width:1.6;opacity:.28;transition:opacity .15s}
+svg.edges path.hot{opacity:.95;stroke-width:2.4}
+svg.edges path.cold{opacity:.06}
+.node{position:absolute;width:206px;min-height:72px;display:grid;grid-template-columns:44px 1fr;gap:10px;align-items:center;padding:9px 10px;background:var(--panel);border:1px solid var(--line);border-radius:10px;cursor:pointer;text-align:left;transition:transform .12s,box-shadow .12s,opacity .15s,border-color .15s}
+.node:hover{transform:translateY(-1px);border-color:var(--c)}
+.node .ring{width:44px;height:44px;border-radius:50%;display:grid;place-items:center;background:conic-gradient(var(--c) calc(var(--p)*1%),var(--panel-2) 0);position:relative}
+.node .ring::after{content:"";position:absolute;inset:4px;border-radius:50%;background:var(--panel)}
+.node .ring span{position:relative;z-index:1;font-family:var(--mono);font-size:11px;font-variant-numeric:tabular-nums}
+.node h4{margin:0;font-family:var(--display);font-weight:600;font-size:13.5px;line-height:1.2}
+.node .meta{font-family:var(--mono);font-size:10.5px;color:var(--muted);margin-top:3px}
+.node.locked{opacity:.55;border-style:dashed}
+.node.mastered{border-color:var(--gold);box-shadow:0 0 0 1px var(--gold),0 0 18px rgba(242,193,78,.18)}
+.node.mastered .ring{background:conic-gradient(var(--gold) 100%,var(--panel-2) 0)}
+.node.dim{opacity:.18}
+.node.match{box-shadow:0 0 0 2px var(--ink)}
+.node.sel{box-shadow:0 0 0 2px var(--c),0 0 22px color-mix(in srgb,var(--c) 40%,transparent)}
+.y3{position:absolute;padding:14px;border:1px dashed var(--line);border-radius:10px;color:var(--muted);font-size:13px;width:250px}
+.y3 b{font-family:var(--display);color:var(--ink);display:block;margin-bottom:4px}
+
+/* path view */
+.pathview{max-width:860px;padding:20px;margin:0 auto}
+.pathview header{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;flex-wrap:wrap;margin-bottom:14px}
+.pathview h2{font-size:20px}
+.pathlist{list-style:none;margin:0;padding:0;display:grid;gap:6px;counter-reset:step}
+.pathlist li{counter-increment:step;display:grid;grid-template-columns:38px 4px 1fr 130px;align-items:center;gap:12px;padding:9px 12px;background:var(--panel);border:1px solid var(--line);border-radius:8px;cursor:pointer}
+.pathlist li:hover{border-color:var(--c)}
+.pathlist li::before{content:counter(step,decimal-leading-zero);font-family:var(--mono);color:var(--muted);font-size:12.5px}
+.pathlist .stripe{width:4px;height:30px;border-radius:2px;background:var(--c)}
+.pathlist .t{font-family:var(--display);font-weight:600}
+.pathlist .m{font-size:12px;color:var(--muted)}
+.pathlist .pb{height:6px;background:var(--panel-2);border-radius:3px;overflow:hidden}
+.pathlist .pb i{display:block;height:100%;background:var(--c)}
+.pathlist li.done .pb i{background:var(--gold)}
+.chip{display:inline-block;font-family:var(--mono);font-size:10.5px;padding:1px 6px;border-radius:3px;border:1px solid var(--line);color:var(--muted);margin-left:6px}
+.linkbtn{background:none;border:1px solid var(--line);border-radius:6px;padding:6px 12px;cursor:pointer;font-size:13px}
+.linkbtn:hover{border-color:var(--ink)}
+
+/* drawer */
+.drawer{position:fixed;top:0;right:0;height:100%;width:min(440px,100%);background:var(--panel);border-left:1px solid var(--line);transform:translateX(105%);transition:transform .2s ease;z-index:10;display:flex;flex-direction:column}
+.drawer.open{transform:none}
+.dhead{padding:18px 18px 12px;border-bottom:1px solid var(--line);position:relative}
+.dhead::before{content:"";position:absolute;left:0;top:0;right:0;height:3px;background:var(--c)}
+.dhead h2{font-size:21px;padding-right:36px}
+.dhead .where{font-size:12.5px;color:var(--muted);margin-top:6px}
+.dhead .close{position:absolute;right:12px;top:14px;background:none;border:1px solid var(--line);border-radius:6px;width:30px;height:30px;cursor:pointer}
+.dbody{overflow-y:auto;padding:14px 18px 30px;display:flex;flex-direction:column;gap:18px}
+.dbody h3{font-size:12px;letter-spacing:.12em;color:var(--muted);font-weight:600;margin-bottom:8px}
+.note{font-size:13px;padding:9px 11px;border-radius:6px;background:var(--panel-2);border-left:3px solid var(--gold)}
+.note.inf{border-left-color:var(--muted);color:var(--muted)}
+.topics{list-style:none;margin:0;padding:0;display:grid;gap:4px}
+.topics li{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center;padding:6px 8px;border-radius:6px;background:var(--bg);border:1px solid transparent}
+.topics li.s2{border-color:rgba(242,193,78,.35)}
+.st{width:92px;font-size:11.5px;font-family:var(--mono);padding:4px 0;border-radius:4px;border:1px solid var(--line);background:var(--panel-2);cursor:pointer}
+.st.s1{border-color:var(--ok);color:var(--ok)}
+.st.s2{border-color:var(--gold);color:var(--bg);background:var(--gold);font-weight:500}
+.topics .tx{font-size:13.5px}
+.topics .tx em{font-style:normal;font-family:var(--mono);font-size:10.5px;color:var(--muted);margin-left:6px}
+.x{background:none;border:0;color:var(--muted);cursor:pointer;font-size:15px;padding:2px 6px;border-radius:4px}
+.x:hover{color:var(--ink);background:var(--panel-2)}
+.add{display:flex;gap:6px;margin-top:8px}
+.add input{flex:1;background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:7px 9px;color:var(--ink);font-size:13px}
+.add button{background:var(--panel-2);border:1px solid var(--line);border-radius:6px;padding:0 12px;cursor:pointer;font-size:13px}
+.restore{background:none;border:0;color:var(--muted);text-decoration:underline;cursor:pointer;font-size:12px;padding:6px 0 0}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chips button{background:var(--bg);border:1px solid var(--line);border-left:3px solid var(--c);border-radius:5px;padding:4px 9px;font-size:12.5px;cursor:pointer}
+.chips button:hover{border-color:var(--c)}
+.chips .none{font-size:12.5px;color:var(--muted)}
+.scrim{position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:9;display:none}
+.scrim.on{display:block}
+footer{padding:16px 20px 28px;color:var(--muted);font-size:12.5px;border-top:1px solid var(--line);max-width:900px}
+[hidden]{display:none!important}
+@media (max-width:640px){
+  header.top{grid-template-columns:1fr}
+  .controls{align-items:flex-start}
+  #search{width:100%}
+  .lanes{flex-basis:96px}
+  .lane-label h3{font-size:12px}
+  .pathlist li{grid-template-columns:30px 4px 1fr;}
+  .pathlist li .pb{grid-column:3}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<script src="../lab-back.js" defer></script><!-- added for louisvrh.github.io/lab: back link; exam notes from Canvas removed from this public copy -->
+<header class="top">
+  <div>
+    <div class="title-row"><h1>Physics Skill Tree</h1><span class="sub">Imperial BSc Physics · Year 1 → Year 2 · comprehensive exam prep</span></div>
+    <div class="xp"><span class="lvl" id="lvl">LV 1</span><div class="bar" aria-hidden="true"><i id="xpbar" style="width:0%"></i></div><span class="xpnum" id="xpnum"></span></div>
+    <div class="tracks-mini" id="tmini"></div>
+  </div>
+  <div class="controls">
+    <div class="tabs" role="tablist">
+      <button role="tab" id="tab-tree" aria-selected="true">Tree</button>
+      <button role="tab" id="tab-path" aria-selected="false">Learning order</button>
+    </div>
+    <label for="search" class="sub" style="position:absolute;left:-9999px">Find a topic</label>
+    <input id="search" type="search" placeholder="Find a topic, e.g. Bessel, Fourier, entropy">
+    <span class="save" id="save">Loading saved progress…</span>
+  </div>
+</header>
+<div class="legend">
+  <span><i class="dot locked"></i>Prerequisites not yet solid</span>
+  <span><i class="dot ready"></i>Ready to learn</span>
+  <span><i class="dot progress"></i>In progress</span>
+  <span><i class="dot mastered"></i>Mastered</span>
+  <span>Click a skill to tick off topics · hover to trace what it builds on and unlocks</span>
+</div>
+
+<section id="view-tree">
+  <div class="treewrap">
+    <div class="lanes" id="lanes"></div>
+    <div class="scroller" id="scroller"><div class="canvas" id="canvas"><svg class="edges" id="edges"></svg></div></div>
+  </div>
+</section>
+
+<section id="view-path" class="pathview" hidden>
+  <header>
+    <div><h2 id="path-title">Full learning order</h2><div class="sub" id="path-sub">Every skill in an order where each one comes after everything it builds on.</div></div>
+    <button class="linkbtn" id="path-all" hidden>Show the full order</button>
+  </header>
+  <ol class="pathlist" id="pathlist"></ol>
+</section>
+
+<footer>
+  Topics come from the contents pages and section titles of the Year 1 and Year 2 notes (checked 20 Nov 2026). Add or hide topics on any skill as needed. Your ticks and edits save to your account on this page. Year 3 branches will be added when those modules are compiled.
+</footer>
+
+<div class="scrim" id="scrim"></div>
+<aside class="drawer" id="drawer" aria-hidden="true" aria-labelledby="d-title">
+  <div class="dhead"><h2 id="d-title"></h2><div class="where" id="d-where"></div><button class="close" id="d-close" aria-label="Close">✕</button></div>
+  <div class="dbody">
+    <div id="d-notes"></div>
+    <div><h3>TOPICS</h3><ul class="topics" id="d-topics"></ul>
+      <button class="restore" id="d-restore" hidden></button>
+      <form class="add" id="d-add"><label for="d-new" style="position:absolute;left:-9999px">Add a topic</label><input id="d-new" placeholder="Add a topic you need for this skill" autocomplete="off"><button type="submit">Add</button></form>
+    </div>
+    <div><h3>BUILDS ON</h3><div class="chips" id="d-req"></div></div>
+    <div><h3>UNLOCKS</h3><div class="chips" id="d-unl"></div></div>
+    <button class="linkbtn" id="d-path">Show the path to this skill, starting from scratch</button>
+  </div>
+</aside>
+
+<script>
+const TRACKS=[
+ {id:"maths",name:"Mathematical methods",c:"#6ea8ff"},
+ {id:"mech",name:"Mechanics & relativity",c:"#ff9f5a"},
+ {id:"waves",name:"Oscillations, waves & optics",c:"#4fd1c5"},
+ {id:"em",name:"Electromagnetism & circuits",c:"#f6c945"},
+ {id:"quantum",name:"Quantum & atomic",c:"#c78bff"},
+ {id:"thermal",name:"Probability, thermal & statistical",c:"#ff6b8b"}
+];
+const YEARS=[{y:1,label:"YEAR 1",sub:"2024–25 · PHYS4000x"},{y:2,label:"YEAR 2",sub:"2025–26 · PHYS5000x"},{y:3,label:"YEAR 3",sub:"2026–27 · to be added"}];
+const Y1MR="Year 1/PHYS40002 Mechanics and Relativity", Y1OW="Year 1/PHYS40003 Oscillations and Waves", Y1VF="Year 1/PHYS40004 Vector Fields, Electricity and Magnetism", Y1SM="Year 1/PHYS40005 Statistics of Measurement";
+const Y2TP="Year 2/PHYS50002 Thermal Physics and Structure of Matter", Y2DE="Year 2/PHYS50003 Differential Equations and Electromagnetism", Y2QP="Year 2/PHYS50004 Quantum Physics", Y2MM="Year 2/PHYS50007 Mathematical Methods";
+const NODES=[
+// ---------- YEAR 1 ----------
+{id:"m1-calc",t:"maths",y:1,title:"Differentiation & curves",mod:"Functions · Ch 2 (L3–4)",src:Y1MR+"/3 Functions",req:[],
+ topics:["Differentiation from first principles","Product, quotient and chain rules","Stationary points","Curve sketching","Parametric representation of curves","Polar coordinates","Polynomial and series representation of functions","A note on inequalities"]},
+{id:"m1-integ",t:"maths",y:1,title:"Integration",mod:"Functions · Ch 3",src:Y1MR+"/3 Functions",req:["m1-calc"],
+ topics:["Riemann's definition of the integral","Fundamental theorem of calculus","Infinite and improper integrals","Useful integration techniques","Mean value, area and arc length","Centre of mass by integration","Volumes and surface areas of revolution"]},
+{id:"m1-multi",t:"maths",y:1,title:"Multivariable calculus",mod:"Functions · Ch 4",src:Y1MR+"/3 Functions",req:["m1-calc"],
+ topics:["Partial derivatives: definitions","The total differential","Chain rule (function of a function)","Cartesian ↔ polar coordinates","Implicit functions","Exact differentials","Stationary points in several variables"]},
+{id:"m1-taylor",t:"maths",y:1,title:"Taylor series",mod:"Functions · Ch 5",src:Y1MR+"/3 Functions",req:["m1-multi"],
+ topics:["Taylor series","Maclaurin series","L'Hôpital's rule revisited","Double (2-variable) Taylor series","Classifying stationary points with Taylor"]},
+{id:"m1-series",t:"maths",y:1,title:"Series & convergence",mod:"Functions · Ch 6",src:Y1MR+"/3 Functions",req:["m1-taylor"],
+ topics:["Infinite sums","Definitions and theorems on convergence","Convergence tests","Radius of convergence of Taylor/Maclaurin series","The zeta function"]},
+{id:"m1-vec",t:"maths",y:1,title:"Vector algebra",mod:"Vectors & Matrices · L3–5",src:Y1MR+"/2 Vectors and Matrices",req:[],
+ topics:["Dot product","Cross product (incl. distributivity)","Derivatives of vectors"]},
+{id:"m1-linalg",t:"maths",y:1,title:"Matrices & linear systems",mod:"Vectors & Matrices · L6–13",src:Y1MR+"/2 Vectors and Matrices",req:["m1-vec"],
+ topics:["Determinants","Cramer's rule","Gaussian elimination","Matrix algebra","Inverse matrices","Basis vectors and change of basis","Linearity","Linear transformations"]},
+{id:"m1-eigen",t:"maths",y:1,title:"Eigenvalues & normal modes",mod:"Vectors & Matrices · L14–16",src:Y1MR+"/2 Vectors and Matrices",req:["m1-linalg"],
+ topics:["Eigenvalues and eigenvectors","Special matrices (symmetric, orthogonal, Hermitian, unitary)","Normal modes from eigenvectors"]},
+{id:"m1-complex",t:"maths",y:1,title:"Complex numbers & analytic functions",mod:"Complex Analysis · L0–8",src:Y1OW+"/1 Complex Analysis",req:["m1-taylor"],
+ topics:["Complex algebra and the Argand diagram","Polar form and Euler's formula","Integer powers and roots","Irrational and complex powers","Complex power series and the ratio test","Complex exponential and the Cauchy product","Complex trig functions and the complex logarithm","Continuity, differentiation and Cauchy–Riemann conditions","Interpreting analytic functions (stretch + rotation)"]},
+{id:"m1-odes",t:"maths",y:1,title:"ODEs (first & second order)",mod:"Complex Analysis · L9–12",src:Y1OW+"/1 Complex Analysis",req:["m1-complex","m1-integ"],
+ topics:["First-order ODEs: trial solution, separation of variables, integrating factor","Second-order homogeneous ODEs","Degenerate (repeated) roots","Damped harmonic oscillator","Inhomogeneous ODEs and particular solutions","Forced harmonic oscillator"]},
+{id:"m1-fourier",t:"maths",y:1,title:"Fourier analysis",mod:"Fourier Analysis · weeks 1–4",src:Y1OW+"/5 Fourier Analysis",req:["m1-complex","m1-integ"],
+ topics:["Even and odd functions","Orthogonal and orthonormal functions","Fourier series (different intervals, complex form)","Dirichlet conditions and Gibbs' phenomenon","Parseval's identity and the power spectrum","Fourier transform: definition and properties","Transforms of the top-hat, Gaussian and Dirac delta","Convolution and deconvolution","Low- and high-pass filters","Applications: resonance shape, Fraunhofer diffraction"]},
+{id:"m1-veccalc",t:"maths",y:1,title:"Vector calculus",mod:"VFEM · Vector Calculus Ch 1–7",src:Y1VF+"/1 Vector Calculus",req:["m1-vec","m1-multi","m1-integ"],
+ topics:["Partial differentiation of scalar and vector fields","Exact differentials and the chain rule","2-D integrals and the Jacobian","Plane-polar coordinates and their unit vectors","3-D integrals in cylindrical and spherical coordinates","Surface integrals","Line integrals and path independence","Gradient and the directional derivative","Divergence and the divergence theorem","The Laplacian","Green's theorem in the plane","Curl and Stokes' theorem","Vector identities","Grad, div and curl in other coordinate systems"]},
+
+{id:"c1-newton",t:"mech",y:1,title:"Newton's laws & energy",mod:"Mechanics · Ch 1–3 (L3–6)",src:Y1MR+"/1 Mechanics",req:["m1-vec"],
+ topics:["Inertial and gravitational mass","Newton's first law and inertial frames","Second law and the work–energy theorem","Power","Position-dependent forces and energy conservation","Conservative forces, potential energy and equilibrium"]},
+{id:"c1-momentum",t:"mech",y:1,title:"Momentum & collisions",mod:"Mechanics · Ch 4 (L7–9)",src:Y1MR+"/1 Mechanics",req:["c1-newton"],
+ topics:["Third law and conservation of momentum","Centre-of-mass motion","Reduced mass","Collisions","Rockets (variable mass)"]},
+{id:"c1-central",t:"mech",y:1,title:"Central forces & orbits",mod:"Mechanics · Ch 5 (L9–13)",src:Y1MR+"/1 Mechanics",req:["c1-momentum"],
+ topics:["Work and potentials in 3D","Central forces","Torque and angular momentum","Elliptical and hyperbolic orbits","Orbit energetics and Kepler's laws"]},
+{id:"c1-rigid",t:"mech",y:1,title:"Rigid bodies & gyroscopes",mod:"Mechanics · Ch 6 (L14–20)",src:Y1MR+"/1 Mechanics",req:["c1-central","m1-integ"],
+ topics:["Rotating assemblies of particles","Separating CoM motion from motion about the CoM","Moment of inertia (incl. by integration)","Forces and torques on a body on a pivot","Rolling without slipping","Gyroscopes and precession"]},
+{id:"c1-rotframes",t:"mech",y:1,title:"Rotating frames",mod:"Mechanics · Ch 7 (L21–22)",src:Y1MR+"/1 Mechanics",req:["c1-rigid"],
+ topics:["Rotating vectors","Rotating reference frames","Centrifugal and Coriolis forces"]},
+{id:"c1-sr",t:"mech",y:1,title:"Special relativity",mod:"Relativity · L1–11",src:Y1MR+"/4 Relativity",req:["c1-newton","m1-linalg"],
+ topics:["Rotations, invariant and covariant quantities","Inertial frames and Galilean transformations","Maxwell's equations, the aether and the postulates","Light clock, time dilation and proper time","Lorentz contraction","Simultaneity","Events and the Lorentz transformations","Velocity transformation","Space-time diagrams and world lines","Four-vectors, event separation and causality","Relativistic energy and momentum; the energy–momentum invariant","Photons","Rest-mass energy, mass conservation and particle decay","Centre-of-mass frame, particle reactions and thresholds","Relativistic Doppler effect"]},
+
+{id:"w1-sho",t:"waves",y:1,title:"Oscillators: free, damped, driven",mod:"O&W · Ch 1–5",src:Y1OW+"/2 Oscillations and Waves",req:["m1-odes","c1-newton"],
+ topics:["Harmonic oscillators: mass on a spring, pendulum, LC circuit","Solving the SHO equation; complex notation","Connection with circular motion","Energy in SHM","Damped oscillator: light, heavy and critical damping","Driven oscillator and resonance","Quality factor Q","Power and energy in a driven oscillator","Resonant electrical circuits","Transients"]},
+{id:"w1-coupled",t:"waves",y:1,title:"Coupled oscillators",mod:"O&W · Ch 6",src:Y1OW+"/2 Oscillations and Waves",req:["w1-sho","m1-eigen"],
+ topics:["Equations of motion for coupled oscillators","Normal modes","General solution as a sum of normal modes","One oscillator initially at rest (energy exchange)"]},
+{id:"w1-waves",t:"waves",y:1,title:"Waves, impedance & modes",mod:"O&W · Ch 7–10",src:Y1OW+"/2 Oscillations and Waves",req:["w1-coupled"],
+ topics:["Wave equation for transverse and longitudinal waves","Wave equation in three dimensions","Travelling-wave solutions","Energy carried by waves","Reflection at a boundary and standing waves","Impedance","Reflection, transmission and impedance matching","Modes of a string fixed at both ends","Modes of a rectangular plate"]},
+{id:"w1-interf",t:"waves",y:1,title:"Interference & wave packets",mod:"O&W · Ch 11–12",src:Y1OW+"/2 Oscillations and Waves",req:["w1-waves"],
+ topics:["Superposition and intensity","Interference between two point sources","Interference of different frequencies (beats)","Wave packets from adding many waves","Phase and group velocity","Dispersion","Sending information with waves"]},
+{id:"w1-geom",t:"waves",y:1,title:"Geometric optics",mod:"Optics · L1–6",src:Y1OW+"/6 Optics",req:[],
+ topics:["Models of light","Refraction","Lens imaging","Imaging and ray diagrams","Optical imaging instruments","Aberrations"]},
+{id:"w1-waveopt",t:"waves",y:1,title:"Wave & Fourier optics",mod:"Optics · L7–15",src:Y1OW+"/6 Optics",req:["w1-geom","w1-interf","m1-fourier"],
+ topics:["Wave optics","Far-field (Fraunhofer) diffraction","Fourier optics","Optical resolution","Image quality in optical systems","Interferometry","Coherence","Optical fibres","Lasers"]},
+
+{id:"e1-circ",t:"em",y:1,title:"Basic electronics",mod:"Basic Electronics · §1–9",src:Y1OW+"/4 Basic Electronics",req:["m1-odes"],
+ topics:["Conduction in metals and Ohm's law","Circuit symbols and I–V relationships","Kirchhoff's voltage and current laws","Series and parallel resistors","Non-ideal sources, internal resistance and meters","Capacitors and inductors","RC, RL, LC and LCR transients","AC circuits and rotating vectors (phasors)","Frequency response and Bode plots"]},
+{id:"e1-estat",t:"em",y:1,title:"Electrostatics",mod:"VFEM · Electrostatics Ch 1–2",src:Y1VF+"/2 Electrostatics",req:["m1-veccalc"],
+ topics:["Charge, Coulomb's law and superposition","Electric field, field lines and the electric dipole","Potential energy and potential difference","Electrostatic circulation law (integral and differential)","Energy of a set of charges; equipotentials; E = −∇V","Potential of an electric dipole","Electric flux, solid angle and Gauss's law","Charge densities and spherically symmetric distributions","Uniqueness theorem","Conductors: surface charge and shielding","Capacitors: parallel-plate, spherical, stored energy","Dielectrics and polarization","Current and resistance"]},
+{id:"e1-mag",t:"em",y:1,title:"Magnetism",mod:"VFEM · Magnetism Ch 1–6",src:Y1VF+"/3 Magnetism",req:["e1-estat"],
+ topics:["Magnetic field and flux; no magnetic monopoles","Lorentz force on a charged particle","Hall effect","Current-carrying loops and DC motors","Biot–Savart law","Ampère's law","Force between parallel current-carrying wires","Faraday's law and Lenz's law","Faraday's law and the induced electric field","Generators","Self- and mutual inductance","Maxwell's equations (overview)"]},
+
+{id:"q1-intro",t:"quantum",y:1,title:"First look at quantum",mod:"O&W · Intro to Quantum Mechanics",src:Y1OW+"/3 Introduction to Quantum Mechanics",req:["w1-waves","m1-complex"],
+ topics:["Planck spectrum","Double slit and complex amplitudes","Photoelectric effect and Compton scattering","Wave–particle duality and de Broglie waves","Wavefunction and standing waves; Bohr model","Uncertainty principle (position–momentum, time–energy)","Time-independent Schrödinger equation","Free particle, particle in a box, finite well","Quantum tunnelling","Quantum harmonic oscillator and Hermite polynomials","Classical limit"]},
+
+{id:"t1-prob",t:"thermal",y:1,title:"Probability & distributions",mod:"Stats of Measurement · L1–4",src:Y1SM,req:["m1-integ"],
+ topics:["Properties of probabilities","Discrete probability distributions","Continuous probability distributions","Central limit theorem"]},
+{id:"t1-infer",t:"thermal",y:1,title:"Statistical inference",mod:"Stats of Measurement · L5–9",src:Y1SM,req:["t1-prob","m1-multi"],
+ topics:["Hypothesis testing","Maximum likelihood estimation","Chi-squared estimation","Correlation and regression","Bayesian estimation"]},
+
+// ---------- YEAR 2 ----------
+{id:"m2-ode",t:"maths",y:2,title:"ODE methods & special functions",mod:"Differential Equations · L1–8",src:Y2DE+"/1 Differential Equations",req:["m1-odes","m1-series"],
+ topics:["Classification: order, degree, linearity, homogeneity","Separable equations, integrating factor, substitutions","Variation of parameters","Existence, uniqueness and singular solutions","2nd-order ODEs: complementary function and particular integral","Linear independence and the Wronskian","Finding a second solution","Power-series solutions about an ordinary point","Legendre's equation","Frobenius method and Bessel functions"]},
+{id:"m2-bvp",t:"maths",y:2,title:"Boundary-value & eigenvalue problems",mod:"Differential Equations · L9–10",src:Y2DE+"/1 Differential Equations",req:["m2-ode","m1-eigen"],
+ topics:["Boundary-value problems","Eigenvalue problems for ODEs"]},
+{id:"m2-pde",t:"maths",y:2,title:"PDEs",mod:"Differential Equations · L11–16",src:Y2DE+"/1 Differential Equations",req:["m2-bvp","m1-fourier","m1-veccalc"],
+ topics:["Separation of variables","1D wave equation","Laplace and diffusion equations in 2D","Solving PDEs with Fourier methods","Laplacian in spherical polar coordinates","Laplacian in cylindrical polar coordinates"]},
+{id:"m2-green",t:"maths",y:2,title:"Green's functions",mod:"Differential Equations · L17–18",src:Y2DE+"/1 Differential Equations",req:["m2-pde"],
+ topics:["Green's functions in 1D","Green's functions in several dimensions"]},
+{id:"m2-var",t:"maths",y:2,title:"Calculus of variations",mod:"Mathematical Methods · PS 1–2",src:Y2MM,req:["m1-multi","m1-integ"],
+ topics:["Variational principle","Euler–Lagrange equations","Constraints","Isoperimetric problems"]},
+{id:"m2-contour",t:"maths",y:2,title:"Complex analysis II",mod:"Mathematical Methods · PS 3–8",src:Y2MM,req:["m1-complex","m1-series"],
+ topics:["Analytic functions","Cauchy's integral theorem and formula","Laurent expansion","Residue theorem","Real integrals by contour integration","Laplace transform","Cauchy principal value"]},
+{id:"m2-tensor",t:"maths",y:2,title:"Index notation & tensors",mod:"Mathematical Methods · PS 8–10",src:Y2MM,req:["m1-linalg"],
+ topics:["Vectors in index notation","Tensors","Levi-Civita symbol","Cross product and determinant via ε"]},
+{id:"m2-vspace",t:"maths",y:2,title:"Vector spaces & similarity",mod:"Mathematical Methods · PS 11",src:Y2MM,req:["m1-eigen","m2-tensor"],
+ topics:["Abstract vector spaces","Eigenvalues revisited","Similarity transformations"]},
+
+{id:"e2-maxwell",t:"em",y:2,title:"Maxwell's equations & EM waves",mod:"Electromagnetism 1 · Ch 1–4",src:Y2DE+"/2 Electromagnetism 1",req:["e1-mag","m1-veccalc"],
+ topics:["Coulomb's law and Maxwell's equations","Displacement current","Fields from charge and current sheets","Wave equations in vacuum","Complex representation and monochromatic waves","Work done by EM fields; Poynting's theorem","Energy density and energy flux examples","Field momentum, momentum flux and radiation pressure"]},
+{id:"e2-pot",t:"em",y:2,title:"Potentials, dipoles & retarded fields",mod:"Electromagnetism 1 · Ch 5–7",src:Y2DE+"/2 Electromagnetism 1",req:["e2-maxwell","m2-green"],
+ topics:["Scalar potential and Poisson's equation","Vector potential","Electric and magnetic dipoles (and electron spin)","Time-dependent scalar and vector potentials","Wave equations for φ and A in the Lorenz gauge","Gauge transformations","Green's functions for φ and A","Retarded potentials and retarded time"]},
+{id:"e2-matter",t:"em",y:2,title:"Fields in matter",mod:"Electromagnetism 2 · L14–18",src:Y2DE+"/3 Electromagnetism 2",req:["e2-maxwell","e1-estat"],
+ topics:["Macroscopic vs microscopic fields; free and bound charges","Charge and current densities; the four-field formalism","Polarization, D and εr","Maxwell's equations in HIL dielectrics","Clausius–Mossotti equation","Magnetization, H and µr; classes of magnetic material","Ohm's law, charge rearrangement time, good/poor conductors","Drude model and the skin effect","Plasmas: P, M, current, power and plasma oscillations"]},
+{id:"e2-cond",t:"em",y:2,title:"EM waves in media",mod:"Electromagnetism 2 · L19–26",src:Y2DE+"/3 Electromagnetism 2",req:["e2-matter","w1-waves"],
+ topics:["Maxwell's equations and plane waves; complex vectors","Dispersion relation and the oscillator model","Normal and anomalous dispersion","Waves in plasmas: longitudinal and transverse solutions, critical density","Waves in poor and good conductors; are metals plasmas?","Boundary conditions at interfaces","Snell's law and prisms","Fresnel equations","Reflection from dielectrics and good conductors","Evanescent waves"]},
+
+{id:"q2-dual",t:"quantum",y:2,title:"Light & matter: waves and particles",mod:"Intro to Quantum Physics · Ch 1–4",src:Y2QP+"/1 Introduction to Quantum Physics",req:["q1-intro","w1-waveopt"],
+ topics:["Light is waves","Light is particles","Particles are waves"]},
+{id:"q2-wave",t:"quantum",y:2,title:"Wavefunction & uncertainty",mod:"Intro to Quantum Physics · Ch 5–6",src:Y2QP+"/1 Introduction to Quantum Physics",req:["q2-dual","m1-fourier","w1-interf"],
+ topics:["The wave function","The uncertainty principle"]},
+{id:"q2-tdse",t:"quantum",y:2,title:"Schrödinger equation & operators",mod:"Intro to Quantum Physics · Ch 7–8",src:Y2QP+"/1 Introduction to Quantum Physics",req:["q2-wave"],
+ topics:["Time-dependent Schrödinger equation","Operators and observables"]},
+{id:"q2-levels",t:"quantum",y:2,title:"Energy levels",mod:"Intro to Quantum Physics · Ch 9",src:Y2QP+"/1 Introduction to Quantum Physics",req:["q2-tdse"],
+ topics:["Bound states and quantised energy levels"]},
+{id:"q2-qm",t:"quantum",y:2,title:"Wave mechanics",mod:"Quantum Mechanics · Ch 1–7",src:Y2QP+"/2 Quantum Mechanics",req:["q2-levels","m1-eigen","m2-vspace","m2-pde"],
+ topics:["Wavefunction, Schrödinger equation and the Hamiltonian","Energy eigenfunctions and stationary states","Position, momentum and Hamiltonian operators","Measurement of position and energy","Quantization, superposition, interference, nonlocality and entanglement","Harmonic oscillator: commutators and ladder operators","Inner product, adjoint and Hermitian operators","Continuous and discrete spectra","Expectation values and probabilities","Dirac notation and representations; projection operators","Ehrenfest theorem","Quantum fluctuations and the uncertainty principle","Time-independent perturbation theory (incl. degenerate)","Angular momentum, compatible observables and spherical harmonics","Central potentials","Spin 1/2: basics, space and spin"]},
+{id:"q2-atomic",t:"quantum",y:2,title:"Atomic physics",mod:"Atomic Physics · L1–11",src:Y2QP+"/3 Atomic Physics",req:["q2-qm"],
+ topics:["Hydrogen: internal state and gross structure","Radial and angular eigenfunctions; size of the atom","Identical particles; symmetric and antisymmetric two-electron states","Total spin of two spin-1/2 particles","Pauli exclusion principle and Hund's rules","Helium gross structure by perturbation theory","Multielectron atoms and electron configurations","Hydrogen molecular ion and molecular bonding","Fine structure: spin-orbit coupling, degenerate perturbation theory, j","Hyperfine structure and the Zeeman effect","Electric dipole Hamiltonian (L8, not examined 2025–26)","Rabi oscillations (L9, not examined 2025–26)","Spontaneous emission (L10, not examined 2025–26)","Lorentz model and scattering (L11, not examined 2025–26)"]},
+
+{id:"t2-matter",t:"thermal",y:2,title:"Structure of matter",mod:"TPSM · Structure of Matter L1–9",src:Y2TP+"/1 Structure of Matter",req:["c1-newton","q1-intro"],
+ topics:["Phases and phase diagrams","Atoms, hydrogen wavefunctions and the periodic table","Bonding and van der Waals forces","X-ray diffraction and sources","Structural dynamics","Elastic and non-elastic deformation","Speed of sound in solids","Fluids and viscosity","Maxwell–Boltzmann distribution","Real gases","Heat capacity and heat transfer"]},
+{id:"t2-laws",t:"thermal",y:2,title:"Laws of thermodynamics",mod:"TPSM · Thermodynamics L1–11",src:Y2TP+"/2 Thermodynamics",req:["m1-multi","m1-integ","t2-matter"],
+ topics:["Fundamental concepts","Zeroth law and temperature","First law","Heat and entropy","Thermodynamic cycles and heat engines","Two-reservoir engines","Reversible processes and the Carnot cycle","Second law","Entropy and the second law","Thermodynamic temperature and the third law","Phases of matter and phase diagrams"]},
+{id:"t2-pots",t:"thermal",y:2,title:"Thermodynamic potentials",mod:"TPSM · Thermodynamics L12–18",src:Y2TP+"/2 Thermodynamics",req:["t2-laws"],
+ topics:["Fundamental equation and exact differentials","Thermodynamic potentials and Maxwell relations","Chemical potential and the Gibbs function","Clapeyron equations for phase transitions","Adiabatic gas expansion and cooling","Generalised variables and magnetic systems","Third law revisited; second law and the arrow of time"]},
+{id:"t2-stat",t:"thermal",y:2,title:"Statistical mechanics",mod:"TPSM · Statistical Physics §1–6",src:Y2TP+"/3 Statistical Physics",req:["t1-prob","t2-laws"],
+ topics:["Microstates and macrostates","Equilibrium and maximum statistical weight","The Boltzmann distribution","Statistical ensembles and generalised entropy","Partition function and thermodynamics","Quantum harmonic oscillators"]},
+{id:"t2-qstat",t:"thermal",y:2,title:"Quantum statistics",mod:"TPSM · Statistical Physics §7–12",src:Y2TP+"/3 Statistical Physics",req:["t2-stat","q2-levels"],
+ topics:["Grand canonical ensemble","Identical particles: bosons and fermions","Bose–Einstein and Fermi–Dirac distributions","Density of states","Classical ideal gas and Sackur–Tetrode entropy","Black-body radiation","Bose–Einstein condensation"]}
+];
+
+const byId=Object.fromEntries(NODES.map(n=>[n.id,n]));
+const trackIdx=Object.fromEntries(TRACKS.map((t,i)=>[t.id,i]));
+const unlocks={};NODES.forEach(n=>n.req.forEach(r=>(unlocks[r]=unlocks[r]||[]).push(n.id)));
+
+/* ---------- state ---------- */
+let S={s:{},c:{},h:{}}; // s: status per "node::topic" (1 learning, 2 mastered); c: custom topics per node; h: hidden default topics
+const LS="physics-skilltree-v1";
+try{const v=JSON.parse(localStorage.getItem(LS)||"null");if(v&&v.s)S={s:v.s||{},c:v.c||{},h:v.h||{}};}catch(e){}
+const key=(id,t)=>id+"::"+t;
+function topicsOf(n){const hid=S.h[n.id]||[];return [...n.topics.filter(t=>!hid.includes(t)).map(t=>({t,custom:false})),...(S.c[n.id]||[]).map(t=>({t,custom:true}))];}
+function score(n){const ts=topicsOf(n);if(!ts.length)return{m:0,done:0,lrn:0,n:0};let done=0,lrn=0;ts.forEach(x=>{const v=S.s[key(n.id,x.t)]||0;if(v===2)done++;else if(v===1)lrn++;});return{m:(done+.5*lrn)/ts.length,done,lrn,n:ts.length};}
+function nodeState(n){const sc=score(n);if(sc.n&&sc.done===sc.n)return"mastered";if(sc.m>0)return"progress";if(n.req.every(r=>score(byId[r]).m>=.6))return"ready";return"locked";}
+
+/* ---------- persistence ---------- */
+let docRef=null,writing=false,dirty=false,timer=null;
+const saveEl=document.getElementById("save");
+function persist(){try{localStorage.setItem(LS,JSON.stringify(S));}catch(e){}
+ if(!docRef){return;}dirty=true;clearTimeout(timer);timer=setTimeout(flush,700);}
+async function flush(){if(!docRef||writing||!dirty)return;writing=true;dirty=false;saveEl.textContent="Saving…";
+ try{await docRef.set(JSON.parse(JSON.stringify(S)));saveEl.textContent="Saved to your account";}
+ catch(e){saveEl.textContent=e&&e.code==="quota_exceeded"?"Storage full: progress kept in this browser only":"Couldn't save to your account; kept in this browser";}
+ writing=false;if(dirty)flush();}
+(async()=>{let to=setTimeout(()=>{saveEl.textContent="Couldn't reach saved progress yet; changes kept in this browser";},10000);
+ try{let cl=window.claude;for(let i=0;i<30&&!(cl&&cl.use);i++){await new Promise(r=>setTimeout(r,100));cl=window.claude;}
+  if(!cl||!cl.use){clearTimeout(to);saveEl.textContent="Progress saved in this browser only";return;}
+  const [db,user]=await Promise.all([cl.use("db"),cl.use("user")]);
+  const id=user?await user.id():null;
+  if(!db||!id){clearTimeout(to);saveEl.textContent="Progress saved in this browser only";return;}
+  docRef=db.doc("data/users/"+id+"/progress");
+  let first=true;
+  docRef.onSnapshot(snap=>{
+   if(!snap.metadata.fromCache){clearTimeout(to);}
+   if(snap.metadata.hasPendingWrites)return;
+   if(snap.exists){const d=snap.data();S={s:{...(d.s||{})},c:JSON.parse(JSON.stringify(d.c||{})),h:JSON.parse(JSON.stringify(d.h||{}))};try{localStorage.setItem(LS,JSON.stringify(S));}catch(e){}renderAll();saveEl.textContent="Saved to your account";}
+   else if(first){ // nothing saved yet: push any local progress up once
+     if(Object.keys(S.s).length||Object.keys(S.c).length||Object.keys(S.h).length){dirty=true;flush();}else saveEl.textContent="Progress saves to your account";}
+   first=false;
+  },err=>{clearTimeout(to);saveEl.textContent="Saved progress unavailable; changes kept in this browser";docRef=null;});
+ }catch(e){clearTimeout(to);saveEl.textContent="Progress saved in this browser only";}
+})();
+
+/* ---------- layout ---------- */
+const NW=206,NH=74,COLW=236,ROWH=90,PADX=26,TOP=52,LANEPAD=16;
+const depth={};
+function dOf(n){if(depth[n.id]!=null)return depth[n.id];const same=n.req.map(r=>byId[r]).filter(r=>r.y===n.y);depth[n.id]=same.length?Math.max(...same.map(dOf))+1:0;return depth[n.id];}
+NODES.forEach(dOf);
+const yearCols={};NODES.forEach(n=>{yearCols[n.y]=Math.max(yearCols[n.y]||0,depth[n.id]+1);});yearCols[3]=yearCols[3]||1;
+const yearX={};let acc=0;YEARS.forEach(Y=>{yearX[Y.y]=acc;acc+=(Y.y===3?300:yearCols[Y.y]*COLW+PADX*2);});const CW=acc;
+const cells={};NODES.forEach(n=>{const k=n.t+"|"+n.y+"|"+depth[n.id];(cells[k]=cells[k]||[]).push(n);});
+const laneRows={};Object.entries(cells).forEach(([k,arr])=>{const t=k.split("|")[0];laneRows[t]=Math.max(laneRows[t]||1,arr.length);});
+const laneY={};let ly=TOP;TRACKS.forEach(t=>{laneY[t.id]=ly;ly+=(laneRows[t.id]||1)*ROWH+LANEPAD*2-(ROWH-NH);});const CH=ly+10;
+const pos={};Object.entries(cells).forEach(([k,arr])=>{const [t,y,d]=k.split("|");arr.forEach((n,i)=>{pos[n.id]={x:yearX[y]+PADX+(+d)*COLW,y:laneY[t]+LANEPAD+i*ROWH};});});
+
+const canvas=document.getElementById("canvas"),edges=document.getElementById("edges"),lanes=document.getElementById("lanes");
+canvas.style.width=CW+"px";canvas.style.height=CH+"px";lanes.style.height=CH+"px";
+YEARS.forEach(Y=>{const b=document.createElement("div");b.className="band";b.style.left=yearX[Y.y]+"px";b.style.width=(Y.y===3?300:yearCols[Y.y]*COLW+PADX*2)+"px";b.innerHTML=`<div class="band-h">${Y.label}<small>${Y.sub}</small></div>`;canvas.insertBefore(b,edges);});
+TRACKS.forEach((t,i)=>{if(i>0){const s=document.createElement("div");s.className="lane-sep";s.style.top=(laneY[t.id]-0)+"px";canvas.insertBefore(s,edges);}
+ const l=document.createElement("div");l.className="lane-label";l.style.setProperty("--c",t.c);l.style.top=laneY[t.id]+"px";l.style.height=((laneRows[t.id]||1)*ROWH+LANEPAD*2-(ROWH-NH))+"px";l.innerHTML=`<h3>${t.name}</h3><span class="pct" id="lp-${t.id}"></span>`;lanes.appendChild(l);});
+const lh=document.createElement("div");lh.className="lane-label";lh.style.top="0";lh.style.height=TOP+"px";lh.style.border="0";lh.innerHTML='<span class="pct">TRACK</span>';lanes.appendChild(lh);
+const y3=document.createElement("div");y3.className="y3";y3.style.left=(yearX[3]+24)+"px";y3.style.top=(TOP+20)+"px";y3.innerHTML="<b>Year 3 branches go here</b>Send the Year 3 course tabs and these tracks will extend to the right, linked to the Year 2 skills they build on.";canvas.appendChild(y3);
+
+const nodeEls={},edgeEls=[];
+NODES.forEach(n=>{const tr=TRACKS[trackIdx[n.t]];const b=document.createElement("button");b.className="node";b.style.left=pos[n.id].x+"px";b.style.top=pos[n.id].y+"px";b.style.setProperty("--c",tr.c);b.dataset.id=n.id;
+ b.innerHTML=`<div class="ring"><span></span></div><div><h4>${n.title}</h4><div class="meta">${n.mod}</div></div>`;
+ b.addEventListener("click",()=>openNode(n.id));b.addEventListener("mouseenter",()=>trace(n.id));b.addEventListener("mouseleave",()=>trace(selected));b.addEventListener("focus",()=>trace(n.id));
+ canvas.appendChild(b);nodeEls[n.id]=b;});
+edges.setAttribute("width",CW);edges.setAttribute("height",CH);
+NODES.forEach(n=>n.req.forEach(r=>{const a=pos[r],b=pos[n.id];const x1=a.x+NW,y1=a.y+NH/2,x2=b.x,y2=b.y+NH/2;const dx=Math.max(40,(x2-x1)*.5);
+ const p=document.createElementNS("http://www.w3.org/2000/svg","path");p.setAttribute("d",`M${x1},${y1} C${x1+dx},${y1} ${x2-dx},${y2} ${x2},${y2}`);p.setAttribute("stroke",TRACKS[trackIdx[byId[r].t]].c);p.dataset.from=r;p.dataset.to=n.id;edges.appendChild(p);edgeEls.push(p);}));
+
+function ancestors(id,set=new Set()){byId[id].req.forEach(r=>{if(!set.has(r)){set.add(r);ancestors(r,set);}});return set;}
+function descendants(id,set=new Set()){(unlocks[id]||[]).forEach(r=>{if(!set.has(r)){set.add(r);descendants(r,set);}});return set;}
+function trace(id){if(!id){edgeEls.forEach(e=>e.classList.remove("hot","cold"));NODES.forEach(n=>nodeEls[n.id].classList.remove("dim"));applySearch();return;}
+ const A=ancestors(id),D=descendants(id),all=new Set([...A,...D,id]);
+ NODES.forEach(n=>nodeEls[n.id].classList.toggle("dim",!all.has(n.id)));
+ edgeEls.forEach(e=>{const on=(all.has(e.dataset.from)&&all.has(e.dataset.to))&&((A.has(e.dataset.from)||e.dataset.from===id)&&(A.has(e.dataset.to)||e.dataset.to===id)||(D.has(e.dataset.to)&&(D.has(e.dataset.from)||e.dataset.from===id)));e.classList.toggle("hot",on);e.classList.toggle("cold",!on);});}
+
+/* ---------- rendering ---------- */
+function renderNodes(){NODES.forEach(n=>{const el=nodeEls[n.id],sc=score(n),st=nodeState(n);el.classList.remove("locked","ready","progress","mastered");el.classList.add(st);el.style.setProperty("--p",Math.round(sc.m*100));el.querySelector(".ring span").textContent=`${sc.done}/${sc.n}`;el.setAttribute("aria-label",`${n.title}, ${sc.done} of ${sc.n} topics mastered`);});}
+function renderHeader(){let done=0,lrn=0,tot=0;const per={};NODES.forEach(n=>{const sc=score(n);done+=sc.done;lrn+=sc.lrn;tot+=sc.n;const p=per[n.t]=per[n.t]||{d:0,l:0,n:0};p.d+=sc.done;p.l+=sc.lrn;p.n+=sc.n;});
+ const xp=done*10+lrn*4;const lvl=Math.floor(Math.sqrt(xp/40))+1;const cur=40*(lvl-1)**2,nxt=40*lvl**2;
+ document.getElementById("lvl").textContent="LV "+lvl;document.getElementById("xpbar").style.width=Math.min(100,(xp-cur)/(nxt-cur)*100)+"%";
+ document.getElementById("xpnum").textContent=`${done} of ${tot} topics mastered · ${lrn} in progress · ${xp} XP (next level at ${nxt})`;
+ const tm=document.getElementById("tmini");tm.innerHTML="";TRACKS.forEach(t=>{const p=per[t.id]||{d:0,l:0,n:1};const pct=Math.round((p.d+.5*p.l)/p.n*100);const s=document.createElement("span");s.className="tm";s.innerHTML=`<b><i style="width:${pct}%;background:${t.c}"></i></b>${t.name.split(" ")[0].replace(",","")} ${pct}%`;tm.appendChild(s);const lp=document.getElementById("lp-"+t.id);if(lp)lp.textContent=`${p.d}/${p.n} mastered`;});}
+function topo(subset){const ids=subset?[...subset]:NODES.map(n=>n.id);const inSet=new Set(ids);const indeg={};ids.forEach(i=>indeg[i]=byId[i].req.filter(r=>inSet.has(r)).length);
+ const order=[];const pr=i=>[byId[i].y,depth[i],trackIdx[byId[i].t],NODES.indexOf(byId[i])];const cmp=(a,b)=>{const A=pr(a),B=pr(b);for(let k=0;k<4;k++)if(A[k]!==B[k])return A[k]-B[k];return 0;};
+ let q=ids.filter(i=>!indeg[i]).sort(cmp);while(q.length){const i=q.shift();order.push(i);(unlocks[i]||[]).filter(j=>inSet.has(j)).forEach(j=>{if(--indeg[j]===0){q.push(j);q.sort(cmp);}});}return order;}
+let pathTarget=null;
+function renderPath(){const list=document.getElementById("pathlist");list.innerHTML="";
+ const ids=pathTarget?topo(new Set([...ancestors(pathTarget),pathTarget])):topo();
+ document.getElementById("path-title").textContent=pathTarget?`Path to ${byId[pathTarget].title}`:"Full learning order";
+ document.getElementById("path-sub").textContent=pathTarget?`${ids.length} skills, from scratch to this one. Each builds on the ones above it.`:"Every skill in an order where each one comes after everything it builds on.";
+ document.getElementById("path-all").hidden=!pathTarget;
+ ids.forEach(id=>{const n=byId[id],sc=score(n),st=nodeState(n),tr=TRACKS[trackIdx[n.t]];const li=document.createElement("li");li.style.setProperty("--c",tr.c);li.tabIndex=0;if(st==="mastered")li.classList.add("done");
+  li.innerHTML=`<span class="stripe"></span><div><div class="t">${n.title}<span class="chip">Y${n.y}</span></div><div class="m">${n.mod}</div></div><div><div class="pb"><i style="width:${Math.round(sc.m*100)}%"></i></div><div class="m" style="margin-top:3px">${sc.done}/${sc.n} mastered</div></div>`;
+  li.addEventListener("click",()=>openNode(id));li.addEventListener("keydown",e=>{if(e.key==="Enter")openNode(id);});list.appendChild(li);});}
+function renderAll(){renderNodes();renderHeader();if(!document.getElementById("view-path").hidden)renderPath();if(selected)renderDrawer();}
+
+/* ---------- drawer ---------- */
+let selected=null;const drawer=document.getElementById("drawer"),scrim=document.getElementById("scrim");
+const LABEL=["Not started","Learning","Mastered"];
+function chipList(el,ids){el.innerHTML="";if(!ids.length){el.innerHTML='<span class="none">Nothing in Years 1–2</span>';return;}ids.forEach(i=>{const b=document.createElement("button");b.style.setProperty("--c",TRACKS[trackIdx[byId[i].t]].c);b.textContent=`${byId[i].title} · Y${byId[i].y}`;b.addEventListener("click",()=>openNode(i));el.appendChild(b);});}
+function renderDrawer(){const n=byId[selected];const tr=TRACKS[trackIdx[n.t]];drawer.style.setProperty("--c",tr.c);
+ document.getElementById("d-title").textContent=n.title;
+ document.getElementById("d-where").textContent=`Year ${n.y} · ${n.mod} · notes in “${n.src}”`;
+ const notes=document.getElementById("d-notes");notes.innerHTML="";
+ if(n.note){const d=document.createElement("div");d.className="note";d.textContent=n.note;notes.appendChild(d);}
+ if(n.inf){const d=document.createElement("div");d.className="note inf";d.style.marginTop=n.note?"8px":"0";d.textContent="Topics partly inferred: Canvas had little detail for this course. Check them against the notes, then hide or add topics.";notes.appendChild(d);}
+ const ul=document.getElementById("d-topics");ul.innerHTML="";
+ topicsOf(n).forEach(x=>{const k=key(n.id,x.t),v=S.s[k]||0;const li=document.createElement("li");if(v===2)li.className="s2";
+  const b=document.createElement("button");b.className="st s"+v;b.textContent=LABEL[v];b.setAttribute("aria-label",`${x.t}: ${LABEL[v]}. Click to change`);
+  b.addEventListener("click",()=>{const nv=((S.s[k]||0)+1)%3;if(nv)S.s[k]=nv;else delete S.s[k];persist();renderAll();});
+  const tx=document.createElement("span");tx.className="tx";tx.textContent=x.t;if(x.custom){const em=document.createElement("em");em.textContent="added";tx.appendChild(em);}
+  const del=document.createElement("button");del.className="x";del.textContent="×";del.setAttribute("aria-label",(x.custom?"Delete ":"Hide ")+x.t);del.title=x.custom?"Delete this topic":"Hide this topic";
+  del.addEventListener("click",()=>{if(x.custom){S.c[n.id]=(S.c[n.id]||[]).filter(t=>t!==x.t);if(!S.c[n.id].length)delete S.c[n.id];}else{(S.h[n.id]=S.h[n.id]||[]).push(x.t);}delete S.s[k];persist();renderAll();});
+  li.append(b,tx,del);ul.appendChild(li);});
+ const hid=(S.h[n.id]||[]).length,rb=document.getElementById("d-restore");rb.hidden=!hid;rb.textContent=`Show ${hid} hidden topic${hid>1?"s":""}`;
+ chipList(document.getElementById("d-req"),n.req);chipList(document.getElementById("d-unl"),unlocks[n.id]||[]);}
+function openNode(id){selected=id;NODES.forEach(n=>nodeEls[n.id].classList.toggle("sel",n.id===id));renderDrawer();drawer.classList.add("open");drawer.setAttribute("aria-hidden","false");scrim.classList.add("on");trace(id);
+ const el=nodeEls[id],sc=document.getElementById("scroller");if(!document.getElementById("view-tree").hidden){const x=pos[id].x;if(x<sc.scrollLeft||x+NW>sc.scrollLeft+sc.clientWidth-440)sc.scrollTo({left:Math.max(0,x-120),behavior:"smooth"});}
+ setTimeout(()=>document.getElementById("d-close").focus(),50);}
+function closeDrawer(){const was=selected;selected=null;drawer.classList.remove("open");drawer.setAttribute("aria-hidden","true");scrim.classList.remove("on");NODES.forEach(n=>nodeEls[n.id].classList.remove("sel"));trace(null);if(was&&!document.getElementById("view-tree").hidden)nodeEls[was].focus({preventScroll:true});}
+document.getElementById("d-close").addEventListener("click",closeDrawer);scrim.addEventListener("click",closeDrawer);
+document.addEventListener("keydown",e=>{if(e.key==="Escape"&&selected)closeDrawer();});
+document.getElementById("d-restore").addEventListener("click",()=>{delete S.h[selected];persist();renderAll();});
+document.getElementById("d-add").addEventListener("submit",e=>{e.preventDefault();const inp=document.getElementById("d-new");const v=inp.value.trim();if(!v||!selected)return;const n=byId[selected];if(n.topics.includes(v)||(S.c[n.id]||[]).includes(v)){inp.value="";return;}(S.c[n.id]=S.c[n.id]||[]).push(v);inp.value="";persist();renderAll();});
+document.getElementById("d-path").addEventListener("click",()=>{pathTarget=selected;closeDrawer();show("path");});
+document.getElementById("path-all").addEventListener("click",()=>{pathTarget=null;renderPath();});
+
+/* ---------- views & search ---------- */
+function show(v){const tree=v!=="path";document.getElementById("view-tree").hidden=!tree;document.getElementById("view-path").hidden=tree;
+ document.getElementById("tab-tree").setAttribute("aria-selected",tree);document.getElementById("tab-path").setAttribute("aria-selected",!tree);
+ if(!tree)renderPath();const h=tree?"tree":"learning-order";if(location.hash!=="#"+h)history.replaceState(null,"","#"+h);}
+document.getElementById("tab-tree").addEventListener("click",()=>show("tree"));
+document.getElementById("tab-path").addEventListener("click",()=>{pathTarget=null;show("path");});
+window.addEventListener("hashchange",()=>show(location.hash==="#learning-order"?"path":"tree"));
+const search=document.getElementById("search");
+function applySearch(){const q=search.value.trim().toLowerCase();NODES.forEach(n=>{const hit=q&&(n.title.toLowerCase().includes(q)||n.mod.toLowerCase().includes(q)||topicsOf(n).some(x=>x.t.toLowerCase().includes(q)));nodeEls[n.id].classList.toggle("match",!!hit);if(!selected)nodeEls[n.id].classList.toggle("dim",!!q&&!hit);});}
+search.addEventListener("input",()=>{if(document.getElementById("view-tree").hidden)show("tree");applySearch();const f=NODES.find(n=>nodeEls[n.id].classList.contains("match"));if(f){const sc=document.getElementById("scroller");const x=pos[f.id].x;if(x<sc.scrollLeft||x+NW>sc.scrollLeft+sc.clientWidth)sc.scrollTo({left:Math.max(0,x-60),behavior:"smooth"});}});
+
+renderAll();show(location.hash==="#learning-order"?"path":"tree");
+</script>
+</body>
+</html>
