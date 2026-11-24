@@ -363,7 +363,7 @@ async function flush(){if(!docRef||writing||!dirty)return;writing=true;dirty=fal
  catch(e){saveEl.textContent=e&&e.code==="quota_exceeded"?"Storage full: progress kept in this browser only":"Couldn't save to your account; kept in this browser";}
  writing=false;if(dirty)flush();}
 (async()=>{let to=setTimeout(()=>{saveEl.textContent="Couldn't reach saved progress yet; changes kept in this browser";},10000);
- try{let cl=window.claude;for(let i=0;i<30&&!(cl&&cl.use);i++){await new Promise(r=>setTimeout(r,100));cl=window.claude;}
+ try{let cl=null;/* hosted copy: the original platform runtime is not available here */
   if(!cl||!cl.use){clearTimeout(to);saveEl.textContent="Progress saved in this browser only";return;}
   const [db,user]=await Promise.all([cl.use("db"),cl.use("user")]);
   const id=user?await user.id():null;

@@ -325,8 +325,8 @@ if (typeof module !== 'undefined') module.exports = { parseAnswer: parseAnswer, 
   }
   function withTimeout(p, ms) { return Promise.race([p, new Promise(function (r) { setTimeout(function () { r(null); }, ms); })]); }
   async function initCaps() {
-    if (typeof claude === 'undefined' || !claude || !claude.use) return;
-    async function use(n) { try { return await withTimeout(claude.use(n), 12000); } catch (e) { return null; } }
+    return; // hosted copy: the original platform runtime is not available here
+    async function use(n) { try { return await withTimeout(Promise.resolve(null), 12000); } catch (e) { return null; } }
     CAPS.db = await use('db'); CAPS.user = await use('user'); CAPS.sample = await use('sample');
     try { CAPS.uid = CAPS.user ? await CAPS.user.id() : null; } catch (e) { CAPS.uid = null; }
     if (CAPS.db && CAPS.uid) {
@@ -434,7 +434,7 @@ if (typeof module !== 'undefined') module.exports = { parseAnswer: parseAnswer, 
       if (r.status !== 'correct') aiBtns += '<button class="btn" data-a="why">Why is my answer wrong?</button>';
       aiBtns += '<button class="btn" data-a="alt">Explain differently</button>';
     }
-    if (r && !CAPS.sample && CAPS.db) aiBtns += '<button class="btn" data-a="ask">Save for Claude in chat</button>';
+    if (r && !CAPS.sample && CAPS.db) aiBtns += '<button class="btn" data-a="ask">Save for later</button>';
     setHTML(
       '<button class="btn" data-a="menu">← Menu</button>' + qHeader(q, S.i + 1, S.list.length) +
       '<div class="stem">' + fmt(q.stem) + '</div>' +
@@ -445,7 +445,7 @@ if (typeof module !== 'undefined') module.exports = { parseAnswer: parseAnswer, 
       (!c.solution ? '<button class="btn" data-a="solution">Show solution</button>' : '') +
       (!r ? '<button class="btn" data-a="skip">Skip</button>' : '') + aiBtns + '</div>' +
       '<div aria-live="polite">' + hintsHTML + fb + '</div>' + sol +
-      '<div id="ai" class="ai" ' + (c.ai ? '' : 'hidden') + '><span class="lab">Claude: </span><span id="aitext">' + (c.ai ? fmt(c.ai) : '') + '</span></div>'
+      '<div id="ai" class="ai" ' + (c.ai ? '' : 'hidden') + '><span class="lab">Assistant: </span><span id="aitext">' + (c.ai ? fmt(c.ai) : '') + '</span></div>'
     );
     if (!r) { var inp = $('#ans'); if (inp) inp.focus(); }
   }
@@ -537,7 +537,7 @@ if (typeof module !== 'undefined') module.exports = { parseAnswer: parseAnswer, 
       '<div class="res">' + rows + '</div><div class="toolbar"><button class="btn primary" data-a="menu">Back to menu</button></div>');
   }
 
-  /* ------------------------------------------------------------ Claude in the page (optional) */
+  /* ------------------------------------------------------------ assistant in the page (optional) */
   function ctx(q, c) {
     var mk = Object.keys(q.mistakes || {}).map(function (k) { return k + ': ' + q.mistakes[k]; }).join(' | ');
     return 'Question: ' + q.stem + '\nVerified correct answer: ' + (q.type === 'mcq' ? q.answer.id : q.answer.value) + '\nWorked solution: ' + q.solution +
@@ -550,7 +550,7 @@ if (typeof module !== 'undefined') module.exports = { parseAnswer: parseAnswer, 
       var r = await CAPS.sample(prompt, { modelTier: 'quick', cache: false, onText: function (x) { t.innerHTML = fmt(x.text); typeset(t); } });
       S.cur.ai = r.text; t.innerHTML = fmt(r.text); typeset(t);
     } catch (e) {
-      if (e && e.code === 'not_granted') { CAPS.sample = null; t.textContent = 'Claude is not available on this page.'; }
+      if (e && e.code === 'not_granted') { CAPS.sample = null; t.textContent = 'The assistant is not available on this page.'; }
       else if (e && e.code === 'rate_limited') t.textContent = 'Rate limited. Please wait a moment before asking again.';
       else t.textContent = 'Sorry, that did not work. You can ask in the chat instead.';
     }
@@ -559,7 +559,7 @@ if (typeof module !== 'undefined') module.exports = { parseAnswer: parseAnswer, 
     if (!CAPS.sample) return;
     var topic = Object.keys(S.prog.stats).sort(function (a, b) { return S.prog.stats[a].correct / S.prog.stats[a].tries - S.prog.stats[b].correct / S.prog.stats[b].tries; })[0] || topicsAll()[0];
     var ex = QS.filter(function (q) { return q.topic === topic && q.type === 'numeric'; })[0] || QS[0];
-    toast('Asking Claude for 5 new questions…');
+    toast('Asking for 5 new questions…');
     var prompt = 'Write 5 new practice questions on Bayes\' rule in odds form (multiple likelihood-ratio updates), topic "' + topic + '". Vary the setup. Each must have ONE exact numeric answer given as a fraction string like "3/8". ' +
       'Return ONLY a JSON array of 5 objects with fields: topic (string), subskill (string), difficulty (1, 2 or 3), type ("numeric"), stem (string with maths in $...$), answer ({"value": "3/8", "rel": 0.02}), hints (array of 2 strings), solution (string using odds form), mistakes ({}), targetSeconds (number). ' +
       'Double-check the arithmetic. Style example: ' + JSON.stringify({ stem: ex.stem, answer: ex.answer });
@@ -590,7 +590,7 @@ if (typeof module !== 'undefined') module.exports = { parseAnswer: parseAnswer, 
     else if (a === 'why') ask('You are a patient tutor. Diagnose why this student\'s answer is wrong in 2 to 4 sentences, speaking to them as "you". Name the specific slip (for example multiplying a probability instead of odds, or forgetting the prior). Use TeX in $...$ for maths. Do not contradict the verified answer. Plain text only.\n\n' + ctx(S.cur.q, S.cur));
     else if (a === 'alt') ask('You are a patient tutor. Explain how to reach the same verified answer by a DIFFERENT route from the worked solution (for example imagining 1000 cases and counting, or a tree of probabilities). 3 to 6 sentences, TeX in $...$, plain text, and do not contradict the verified answer.\n\n' + ctx(S.cur.q, S.cur));
     else if (a === 'ask') {
-      CAPS.db.doc('asks/' + S.cur.q.id + '-' + Date.now().toString(36)).set({ qid: S.cur.q.id, stem: S.cur.q.stem, answer: S.cur.input, at: Date.now() }).then(function () { toast('Saved. Ask Claude in the chat to look at it.'); }).catch(function () { toast('Could not save that.'); });
+      CAPS.db.doc('asks/' + S.cur.q.id + '-' + Date.now().toString(36)).set({ qid: S.cur.q.id, stem: S.cur.q.stem, answer: S.cur.input, at: Date.now() }).then(function () { toast('Saved.'); }).catch(function () { toast('Could not save that.'); });
     }
     else if (a === 'more') genMore();
     else if (a === 'goto') gotoQ(Number(t.getAttribute('data-k')));
