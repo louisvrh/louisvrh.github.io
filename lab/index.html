@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Things I build · Louis Razumovsky-Hough</title>
-<meta name="description" content="Four agent skills I designed, and what they produce: 10 interactive physics visualisers with Node-tested physics cores, verified practice questions and study automations.">
+<meta name="description" content="Four agent skills and their outputs: 10 interactive physics visualisers with Node-tested physics cores, verified practice questions and study guides.">
 <meta name="theme-color" content="#07080c">
 <link rel="canonical" href="https://louisvrh.github.io/lab/">
 <link rel="icon" href="../favicon.svg" type="image/svg+xml">
@@ -13,7 +13,7 @@
 <meta property="og:url" content="https://louisvrh.github.io/lab/">
 <meta property="og:site_name" content="Louis Razumovsky-Hough · Airy Labs">
 <meta property="og:title" content="Things I build">
-<meta property="og:description" content="Four agent skills I designed, and what they produce: 10 interactive physics visualisers with Node-tested physics cores, verified practice questions and study automations.">
+<meta property="og:description" content="Four agent skills and their outputs: 10 interactive physics visualisers with Node-tested physics cores, verified practice questions and study guides.">
 <meta property="og:image" content="https://louisvrh.github.io/lab/og.jpg">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
@@ -208,10 +208,6 @@
   .io dd { margin: 0; }
   .trust { margin: 0; font-size: 14px; }
   .trust b { color: var(--strong); font-weight: 600; }
-  blockquote {
-    margin: 0; padding: 0 0 0 12px; border-left: 2px solid var(--accent);
-    font-size: 13.5px; color: var(--strong); font-style: italic;
-  }
   details { border-top: 1px solid var(--line); padding-top: 0.6rem; margin-top: auto; }
   summary {
     cursor: pointer; list-style: none; display: inline-flex; align-items: center; gap: 8px;
@@ -286,8 +282,7 @@
   @media (max-width: 560px) { .others li { grid-template-columns: minmax(0, 1fr); } .others p { margin-top: 0.2rem; } }
   .sub-h { margin: 2.2rem 0 1rem; }
 
-  .closing p { max-width: var(--measure); font-size: 16px; color: var(--strong); }
-  .closing p + p { color: var(--text); font-size: 15px; }
+  .closing p { max-width: var(--measure); color: var(--text); }
   footer {
     margin: 1.4rem 0 4rem; font-size: 12px; color: var(--muted); text-align: center;
   }
@@ -317,11 +312,11 @@
     <div class="hero-text">
       <p class="kicker">Agent skills · physics visualisers · study automation</p>
       <h1>Things I build</h1>
-      <p class="lede">I write agent skills: reusable instructions that come with their own checks. They turn my lecture notes into interactive physics visualisers, verified practice questions and study guides. Below are the skills, how they connect, and what they have built so far.</p>
+      <p class="lede">Four agent skills I wrote for my physics degree, and what they produce from lecture notes: interactive visualisers, practice question sets and study guides. Each skill specifies a procedure and the tests its output must pass.</p>
       <ul class="facts" aria-label="At a glance">
-        <li><b>4</b> custom skills</li>
-        <li><b>10</b> interactive visualisers</li>
-        <li><b>6</b> physics cores unit-tested in Node before any UI</li>
+        <li><b>4</b> skills</li>
+        <li><b>10</b> visualisers</li>
+        <li><b>6</b> with physics cores unit-tested in Node</li>
       </ul>
     </div>
 
@@ -341,7 +336,7 @@
           <span class="cta">▶ Run it here</span>
         </a>
       </div>
-      <figcaption class="viewer-cap"><strong>Drag the point h across the contours, or drag the surface to rotate it.</strong> The two arrows are the eigenvectors of K, the only directions in which the force −Kh points straight back along the line. That is why the normal modes of m d²h/dt² = −Kh are those eigenvectors.</figcaption>
+      <figcaption class="viewer-cap"><strong>Drag h across the contour plot, or drag the surface to rotate it.</strong> The arrows are the eigenvectors of K, the only directions in which −Kh is parallel to h, so the normal modes of m d²h/dt² = −Kh lie along them.</figcaption>
     </figure>
   </header>
 
@@ -350,7 +345,7 @@
     <!-- ===================== pipeline ===================== -->
     <section class="panel" aria-labelledby="h-pipe">
       <h2 id="h-pipe"><span class="n">01</span>How the skills connect</h2>
-      <p class="intro">Each skill is a written procedure that the agent follows, including the tests it must run before it is allowed to publish anything. They hand work to each other: one lecture PDF becomes a study page, and from that page I can request a visualisation or a question set.</p>
+      <p class="intro">Each skill is a written procedure, including tests the output must pass before it is published. <span class="skill-name">lecture-notes-to-doc</span> converts a lecture PDF into a study page and, on request, passes briefs to <span class="skill-name">physics-visualiser</span> and <span class="skill-name">practice-questions</span>.</p>
 
       <svg class="pipe-svg" viewBox="0 0 960 476" aria-hidden="true" focusable="false">
         <defs>
@@ -365,15 +360,15 @@
         <!-- Row A: lecture notes -->
         <rect class="in" x="0.5" y="30.5" width="200" height="56" rx="3"/>
         <text class="t" x="14" y="54">Lecture-note PDFs</text>
-        <text class="s" x="14" y="72">one set per chat</text>
+        <text class="s" x="14" y="72">one lecture set at a time</text>
         <path class="ar" d="M201 58 H258" marker-end="url(#ah)"/>
         <rect class="sk" x="262.5" y="30.5" width="270" height="56" rx="3"/>
         <text class="k" x="276" y="54">lecture-notes-to-doc</text>
-        <text class="s" x="276" y="72">faithful transcription, marked additions</text>
+        <text class="s" x="276" y="72">transcription; additions marked</text>
         <path class="ar acc" d="M533 58 H600" marker-end="url(#ahA)"/>
         <rect class="out" x="604.5" y="30.5" width="355" height="56" rx="3"/>
         <text class="t" x="618" y="54">LaTeX-style study page</text>
-        <text class="s" x="618" y="72">select any passage, ask, get an answer in place</text>
+        <text class="s" x="618" y="72">inline questions on any passage</text>
 
         <!-- dispatch -->
         <path class="ar acc" d="M282 87 V230 H296" marker-end="url(#ahA)"/>
@@ -384,20 +379,20 @@
         <!-- Row B: visualiser -->
         <rect class="sk" x="300.5" y="124.5" width="232" height="56" rx="3"/>
         <text class="k" x="314" y="148">physics-visualiser</text>
-        <text class="s" x="314" y="166">tested core first, then the UI</text>
+        <text class="s" x="314" y="166">Node-tested core, then UI</text>
         <path class="ar acc" d="M533 152 H600" marker-end="url(#ahA)"/>
         <rect class="out" x="604.5" y="124.5" width="355" height="56" rx="3"/>
         <text class="t" x="618" y="148">Interactive visualiser page</text>
-        <text class="s" x="618" y="166">presets, live readouts, “What to notice”</text>
+        <text class="s" x="618" y="166">presets, live readouts, model notes</text>
 
         <!-- Row C: practice -->
         <rect class="in" x="0.5" y="214.5" width="200" height="56" rx="3"/>
-        <text class="t" x="14" y="238">Or any source</text>
+        <text class="t" x="14" y="238">Other sources</text>
         <text class="s" x="14" y="256">syllabus, past paper, OA list</text>
         <path class="ar" d="M201 252 H296" marker-end="url(#ah)"/>
         <rect class="sk" x="300.5" y="210.5" width="232" height="56" rx="3"/>
         <text class="k" x="314" y="234">practice-questions</text>
-        <text class="s" x="314" y="252">every answer recomputed</text>
+        <text class="s" x="314" y="252">answers recomputed by verify.py</text>
         <path class="ar acc" d="M533 238 H600" marker-end="url(#ahA)"/>
         <rect class="out" x="604.5" y="210.5" width="355" height="56" rx="3"/>
         <text class="t" x="618" y="234">Practice page with tracking</text>
@@ -413,24 +408,24 @@
         <path class="ar" d="M201 364 H258" marker-end="url(#ah)"/>
         <rect class="sk" x="262.5" y="336.5" width="270" height="56" rx="3"/>
         <text class="k" x="276" y="360">physics-module-study-guide</text>
-        <text class="s" x="276" y="378">teaches, prerequisites first</text>
+        <text class="s" x="276" y="378">ordered by prerequisites</text>
         <path class="ar acc" d="M533 364 H600" marker-end="url(#ahA)"/>
         <rect class="out" x="604.5" y="336.5" width="355" height="56" rx="3"/>
-        <text class="t" x="618" y="360">Teaching study guide for one module</text>
+        <text class="t" x="618" y="360">Study guide for one module</text>
         <text class="s" x="618" y="378">derivations, worked examples, key-formulae table</text>
 
         <!-- Row E: study coach -->
         <rect class="in" x="0.5" y="412.5" width="200" height="56" rx="3"/>
         <text class="t" x="14" y="436">Scheduled tasks</text>
-        <text class="s" x="14" y="454">an agent on a timer</text>
+        <text class="s" x="14" y="454">on a schedule</text>
         <path class="ar wm" d="M201 440 H258" marker-end="url(#ahW)"/>
         <rect class="sk2" x="262.5" y="412.5" width="270" height="56" rx="3"/>
         <text class="w" x="276" y="436">study coach</text>
         <text class="s" x="276" y="454">a Telegram bot</text>
         <path class="ar wm" d="M533 440 H600" marker-end="url(#ahW)"/>
         <rect class="out" x="604.5" y="412.5" width="355" height="56" rx="3"/>
-        <text class="t" x="618" y="436">A morning plan on my phone</text>
-        <text class="s" x="618" y="454">then it checks my replies</text>
+        <text class="t" x="618" y="436">Morning study plan via Telegram</text>
+        <text class="s" x="618" y="454">replies are checked</text>
       </svg>
 
       <!-- The same diagram as text: shown on narrow screens, read by screen readers everywhere. -->
@@ -441,7 +436,7 @@
             <span class="arrow" aria-hidden="true">↓</span>
             <span class="chip sk">lecture-notes-to-doc</span>
             <span class="arrow" aria-hidden="true">↓</span>
-            <span class="chip">LaTeX-style study page with in-place answers</span>
+            <span class="chip">LaTeX-style study page, inline questions</span>
             <div class="branch">
               <span class="note">dispatches briefs to</span>
               <span class="chip sk">physics-visualiser</span>
@@ -455,7 +450,7 @@
         </li>
         <li>
           <div class="chain">
-            <span class="chip in">Any source: syllabus, past paper, OA list</span>
+            <span class="chip in">Other sources: syllabus, past paper, OA list</span>
             <span class="arrow" aria-hidden="true">↓</span>
             <span class="chip sk">practice-questions</span>
           </div>
@@ -466,7 +461,7 @@
             <span class="arrow" aria-hidden="true">↓</span>
             <span class="chip sk">physics-module-study-guide</span>
             <span class="arrow" aria-hidden="true">↓</span>
-            <span class="chip">Teaching study guide for one module</span>
+            <span class="chip">Study guide for one module</span>
           </div>
         </li>
         <li>
@@ -475,7 +470,7 @@
             <span class="arrow" aria-hidden="true">↓</span>
             <span class="chip sk2">study coach (Telegram bot)</span>
             <span class="arrow" aria-hidden="true">↓</span>
-            <span class="chip">A morning plan, then it checks my replies</span>
+            <span class="chip">Morning study plan via Telegram; replies checked</span>
           </div>
         </li>
       </ol>
@@ -484,24 +479,23 @@
     <!-- ===================== skills ===================== -->
     <section class="panel" aria-labelledby="h-skills">
       <h2 id="h-skills"><span class="n">02</span>The four skills</h2>
-      <p class="intro">Each one fixes the order of work and the checks the agent must pass before it publishes anything. The engineering is in the checks.</p>
+      <p class="intro">Inputs, outputs, and the checks each skill applies before publishing.</p>
 
       <div class="skills">
         <article class="skill" aria-labelledby="sk-vis">
           <span class="skill-name">physics-visualiser</span>
-          <h3 id="sk-vis">One concept, one interactive page, with the physics tested first</h3>
+          <h3 id="sk-vis">Interactive simulation page for one physics concept</h3>
           <dl class="io">
             <dt>In</dt><dd>A brief: the concept, the lecture’s equations and symbols, the cases it discusses, the insight to show.</dd>
             <dt>Out</dt><dd>A page with the equations in KaTeX, a canvas, 2–4 sliders, presets for each lecture case, live readouts, “What to notice” and a collapsed “Model and assumptions”.</dd>
           </dl>
-          <p class="trust"><b>Why trust it:</b> all the physics lives in a <code>core.js</code> with no DOM code, and it has to pass a Node test suite before any UI is built. Conservative systems use symplectic integrators (velocity Verlet or leapfrog), so energy doesn’t drift.</p>
-          <blockquote>“A pretty animation with wrong dynamics is worse than none, because the student will trust it.”</blockquote>
+          <p class="trust"><b>Verification:</b> the physics is in a separate <code>core.js</code> (no DOM code) that must pass a Node test suite before the UI is built. Conservative systems use symplectic integrators (velocity Verlet, leapfrog).</p>
           <details>
-            <summary>How it checks itself</summary>
+            <summary>Details</summary>
             <ul>
               <li>Uses the analytic solution whenever one exists, and simulates only what has no closed form.</li>
               <li>Matches the integrator to the system: Verlet or leapfrog for Hamiltonian mechanics, RK4 for damped or driven systems, eigenstate expansion, split-step Fourier or Crank–Nicolson for time-dependent QM. Never explicit Euler for oscillatory motion.</li>
-              <li>The test file must print three things: drift in a conserved quantity under 1e-3 over at least 20 periods (or the right decay rate if damped), an analytic benchmark such as a period or the small-amplitude limit, and the correct qualitative behaviour for every preset.</li>
+              <li>Required test output: relative drift in a conserved quantity below 1e-3 over at least 20 periods (or the expected decay rate if damped), an analytic benchmark such as a period or small-amplitude limit, and the expected behaviour for every preset.</li>
               <li>A fixed physics timestep, decoupled from the frame rate; sub-stepping when the speed slider is high; boundary conditions stated on the page.</li>
             </ul>
           </details>
@@ -509,61 +503,59 @@
 
         <article class="skill" aria-labelledby="sk-lec">
           <span class="skill-name">lecture-notes-to-doc</span>
-          <h3 id="sk-lec">Lecture PDFs become a page that reads like the LaTeX original, and answers back</h3>
+          <h3 id="sk-lec">Lecture-notes PDF to a LaTeX-style web page</h3>
           <dl class="io">
             <dt>In</dt><dd>A lecture-notes PDF.</dd>
-            <dt>Out</dt><dd>A study page in Latin Modern, with numbered equations and the printed page numbers in the margin. Select a passage, ask a question, and the answer appears in place. On request it hands briefs to the visualiser and practice-question skills.</dd>
+            <dt>Out</dt><dd>A study page in Latin Modern with numbered equations and the printed page numbers in the margin. Any passage can be selected and queried inline. On request it passes briefs to the visualiser and practice-question skills.</dd>
           </dl>
-          <p class="trust"><b>Why trust it:</b> fidelity comes first. The rendered page image, not the extracted text, is the ground truth for every equation. The agent’s additions are labelled and never mixed into the lecturer’s text, and suspected errors in the notes are kept as written and flagged, not silently fixed.</p>
+          <p class="trust"><b>Verification:</b> equations are transcribed from rendered page images, not extracted text. Additions are labelled and kept separate from the lecturer’s text; suspected errors in the notes are flagged rather than corrected.</p>
           <details>
-            <summary>How it checks itself</summary>
+            <summary>Details</summary>
             <ul>
-              <li>It rasterises every page with maths, figures or handwriting, because text extraction garbles subscripts, fractions and vectors.</li>
-              <li>A skipped algebra step gets a marked <code>STEP</code> note after the equation, and the lecturer’s lines are never edited.</li>
-              <li>Any claim the agent adds is checked numerically where possible: “If you say you checked something, you must have run the check.”</li>
-              <li>The page is built by a tested build kit that is restored byte for byte, matched by SHA-256, never retyped. A build that reports TeX errors isn’t published.</li>
-              <li>Visualisations are made only when I ask for one, each by a background agent briefed with the lecture’s own equations and notation.</li>
+              <li>Pages with maths, figures or handwriting are rasterised and read as images, since text extraction garbles subscripts, fractions and vectors.</li>
+              <li>Skipped algebra steps get a marked <code>STEP</code> note after the equation; the lecturer’s lines are not edited.</li>
+              <li>Claims added by the agent are checked numerically where possible.</li>
+              <li>Pages are built with a tested build kit restored byte for byte (SHA-256 matched). Builds with TeX errors are not published.</li>
+              <li>Visualisations are built only on request, by a background agent given the lecture’s equations and notation.</li>
             </ul>
           </details>
         </article>
 
         <article class="skill" aria-labelledby="sk-pq">
           <span class="skill-name">practice-questions</span>
-          <h3 id="sk-pq">Practice questions where every answer key is recomputed before it ships</h3>
+          <h3 id="sk-pq">Practice question sets with independently verified answers</h3>
           <dl class="io">
             <dt>In</dt><dd>Any source: lecture notes, a syllabus, a topic checklist, a past paper or an interview prep list.</dd>
-            <dt>Out</dt><dd>An interactive practice page with 20 questions by default (40% core, 40% exam-standard, 20% stretch): practice, timed, drill and review modes, hints, and spaced repetition.</dd>
+            <dt>Out</dt><dd>An interactive page, 20 questions by default (40% core, 40% exam-standard, 20% stretch), with practice, timed, drill and review modes, hints and spaced repetition.</dd>
           </dl>
-          <p class="trust"><b>Why trust it:</b> a separate <code>verify.py</code> recomputes every answer independently of how it was written. It uses exact fractions, and probability answers also get a Monte Carlo run of at least 200k trials that must agree within 4 standard errors. A question that fails is fixed or dropped.</p>
-          <blockquote>“A wrong answer key is worse than no question.”</blockquote>
+          <p class="trust"><b>Verification:</b> <code>verify.py</code> recomputes every answer independently, with exact fractions; probability answers also need a Monte Carlo check (≥ 200k trials, agreement within 4 standard errors). Failing questions are fixed or dropped.</p>
           <details>
-            <summary>How it checks itself</summary>
+            <summary>Details</summary>
             <ul>
-              <li>Each wrong multiple-choice option is a real mistake (a forgotten conditioning, a factor of 2, an off-by-one), so a wrong answer gets a diagnosis rather than just a cross.</li>
+              <li>Each wrong multiple-choice option corresponds to a specific mistake (missed conditioning, a factor of 2, an off-by-one), which is shown when it is chosen.</li>
               <li>Multiple-choice checks: exactly one option equals the verified answer, and no two options are numerically equal. Expressions are checked for equivalence at 20 random points.</li>
               <li>Answers are accepted in any reasonable format: 3/8, 0.375, 37.5% or 3.75e-1.</li>
               <li>Extra questions generated inside the page are badged “Unverified” until they have been through <code>verify.py</code>.</li>
-              <li>It never claims to reproduce a real exam’s or firm’s questions, only questions “in the style of”.</li>
+              <li>Questions are original; none are presented as a real exam’s or firm’s questions.</li>
             </ul>
           </details>
         </article>
 
         <article class="skill" aria-labelledby="sk-sg">
           <span class="skill-name">physics-module-study-guide</span>
-          <h3 id="sk-sg">A study guide that teaches a whole module, prerequisites first</h3>
+          <h3 id="sk-sg">Study guide for one module, built from the course notes</h3>
           <dl class="io">
             <dt>In</dt><dd>A module code or name, read from my indexed library of Year 1–3 notes.</dd>
-            <dt>Out</dt><dd>A guide that someone who missed the lectures could learn from: prerequisites from the Skill Tree, then per topic why it matters, the ideas, key derivations, a worked example and common mistakes. It ends with a key-formulae table with sources.</dd>
+            <dt>Out</dt><dd>A guide ordered by prerequisites (from the Skill Tree). Per topic: motivation, explanation, key derivations, a worked example and common mistakes. Ends with a key-formulae table with sources.</dd>
           </dl>
-          <p class="trust"><b>Why trust it:</b> every formula in the table is checked against its source page for factors of 2 and π, signs, ħ versus h, and SI versus Gaussian units. For a whole module, a second agent that hasn’t seen the draft compares the table with the PDFs and reports mismatches.</p>
-          <blockquote>“It is not a recap sheet.”</blockquote>
+          <p class="trust"><b>Verification:</b> each formula in the table is checked against its source page (factors of 2 and π, signs, ħ vs h, SI vs Gaussian units). For a whole module, a second agent that has not seen the draft compares the table with the PDFs.</p>
           <details>
-            <summary>How it checks itself</summary>
+            <summary>Details</summary>
             <ul>
-              <li>Notes are looked up through a per-module index rather than by browsing, so it reads the primary notes first and secondary material only to fill gaps.</li>
-              <li>Equation-heavy pages are rendered as images before any formula is written down: never “rebuild an equation from memory when the notes have it”.</li>
+              <li>Sources are chosen from a per-module index: primary notes first, secondary material only to fill gaps.</li>
+              <li>Equation-heavy pages are read as images before any formula is written down.</li>
               <li>Every prerequisite named must be a real node in the Skill Tree, and every exam claim must trace back to the course’s own exam notes.</li>
-              <li>Background that isn’t in the notes is labelled “(not in the notes)”, and notation clashes between modules are pointed out.</li>
+              <li>Material not in the notes is labelled “(not in the notes)”; notation clashes between modules are noted.</li>
             </ul>
           </details>
         </article>
@@ -573,7 +565,7 @@
     <!-- ===================== gallery ===================== -->
     <section class="panel" aria-labelledby="h-gallery">
       <h2 id="h-gallery"><span class="n">03</span>Visualisers</h2>
-      <p class="intro">Ten pages, each built by <span class="skill-name">physics-visualiser</span> to answer one question from a course I was taking. The six marked “tested core” have a separate physics core that passed its Node tests before the page was built. The “checked” line says what the core is verified against.</p>
+      <p class="intro">Ten pages built with <span class="skill-name">physics-visualiser</span>, each on one topic from a course I took. “tested core” marks the six with a separate physics core that passed Node tests; “checked” gives what it was tested against.</p>
       <div class="group">
         <div class="group-head"><h3 id="g-ss">Solid State</h3><span class="count">9 pages</span></div>
         <ul class="grid" aria-labelledby="g-ss">
@@ -690,7 +682,7 @@
           <div class="thumb"><img src="thumbs/physics-skill-tree-600.webp" srcset="thumbs/physics-skill-tree-600.webp 600w, thumbs/physics-skill-tree-1200.webp 1200w" sizes="(max-width: 820px) 92vw, 500px" width="600" height="375" loading="lazy" decoding="async" alt="The Physics Skill Tree: lanes for each subject, with skills linked by prerequisite arrows from Year 1 to Year 2."></div>
           <div class="card-body">
             <h3>Physics Skill Tree</h3>
-            <p class="q">An interactive prerequisite map of the Imperial physics degree: 53 skills and 377 topics across Years 1 and 2. Tick off topics as you master them, and hover over a skill to trace what it builds on and what it unlocks. The study-guide skill reads the tree to order its prerequisites.</p>
+            <p class="q">Prerequisite map of the Imperial physics degree: 53 skills and 377 topics, Years 1–2. Topics can be marked as learnt; hovering a skill highlights its prerequisites and dependents. The study-guide skill uses it to order prerequisites.</p>
             <span class="course">Progress is saved in your browser only</span>
             <div class="card-foot"><span class="tag">live</span><a class="open" href="viz/physics-skill-tree/">Open<span class="sr-only">: Physics Skill Tree</span> →</a></div>
           </div>
@@ -699,7 +691,7 @@
           <div class="thumb"><img src="thumbs/bayes-odds-practice-600.webp" srcset="thumbs/bayes-odds-practice-600.webp 600w, thumbs/bayes-odds-practice-1200.webp 1200w" sizes="(max-width: 820px) 92vw, 500px" width="600" height="375" loading="lazy" decoding="async" alt="A practice page styled like a LaTeX paper: the title Bayes’ Rule in Odds Form, an abstract and the key formula."></div>
           <div class="card-body">
             <h3>Bayes in odds form: practice</h3>
-            <p class="q">A page made with <span class="skill-name">practice-questions</span>: 20 problems on updating a belief with likelihood ratios, from medical tests to poker reads. Every answer key was recomputed with exact fractions and a Monte Carlo simulation before the page was built.</p>
+            <p class="q">A page made with <span class="skill-name">practice-questions</span>: 20 problems on Bayesian updating with likelihood ratios (medical tests, poker reads). Answers verified with exact fractions and Monte Carlo simulation.</p>
             <span class="course">Practice, timed and review modes</span>
             <div class="card-foot"><span class="tag">live</span><a class="open" href="viz/bayes-odds-practice/">Open<span class="sr-only">: Bayes in odds form practice</span> →</a></div>
           </div>
@@ -714,7 +706,7 @@
           </figure>
           <div class="card-body">
             <h3>Lecture pages</h3>
-            <p class="q">Made with <span class="skill-name">lecture-notes-to-doc</span>: Solid State Physics L1–6 and L7–11, Atomic Physics L8–14 and Rigid Bodies L11–15, each a LaTeX-style page with in-place answers to questions on any passage, on-demand visualisations and a “Check yourself” sheet.</p>
+            <p class="q">Made with <span class="skill-name">lecture-notes-to-doc</span>: Solid State Physics L1–6 and L7–11, Atomic Physics L8–14, Rigid Bodies L11–15. LaTeX-style pages with inline questions, on-request visualisations and a short “Check yourself” sheet.</p>
             <span class="course">Not published: the notes are the university’s</span>
           </div>
         </li>
@@ -736,7 +728,7 @@
       <ul class="others" aria-labelledby="h-other">
         <li>
           <h4>Quantum circuit compilation</h4>
-          <p>My entry to the Google Quantum AI verifiable circuit-compilation competition on Kaggle is run by a team of long-running AI agents.</p>
+          <p>Entry to the Google Quantum AI verifiable circuit-compilation competition on Kaggle, run by a team of long-running AI agents.</p>
         </li>
         <li>
           <h4>Poker-bot hackathon</h4>
@@ -747,8 +739,7 @@
 
     <!-- ===================== closing ===================== -->
     <section class="panel closing" aria-label="How I work">
-      <p>I design the skills and the checks they have to pass; the skills do the building.</p>
-      <p>Every visualiser and tool linked here came out of one of the skills above.</p>
+      <p>All pages linked above were generated by these skills; I wrote the skills and their tests.</p>
     </section>
   </main>
 
