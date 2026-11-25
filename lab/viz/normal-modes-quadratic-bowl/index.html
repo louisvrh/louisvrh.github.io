@@ -1,0 +1,1276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Normal modes: the quadratic bowl</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
+<style>
+:root{
+  --bg:#f5f5f2; --panel:#ffffff; --fg:#1b1d21; --muted:#5b616b; --line:#d3d7dd; --grid:#eceef1;
+  --c1:#C2530A; --c2:#0068A8; --ck:#A3477D; --cf:#00845F; --hot:#E69F00;
+  --x1:#0068A8; --x2:#C2530A; --ca:#00845F; --cb:#A3477D;
+  --pos:#c6dbf0; --neg:#f6d2bf; --posl:#7f9dbf; --negl:#c98a6c; --okbg:#fff4d6;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#111316; --panel:#1a1d22; --fg:#e7e9ec; --muted:#9aa1ab; --line:#30353d; --grid:#22262c;
+    --c1:#F0833A; --c2:#56B4E9; --ck:#DE8CBC; --cf:#2FC293; --hot:#F0C04A;
+    --x1:#56B4E9; --x2:#F0833A; --ca:#2FC293; --cb:#DE8CBC;
+    --pos:#1f3a57; --neg:#57301f; --posl:#5f87b3; --negl:#b5714f; --okbg:#3a3016;
+  }
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--fg)}
+body{font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+main{max-width:1200px;margin:0 auto;padding:18px 16px 40px}
+h1{font-size:1.55rem;margin:0 0 2px;letter-spacing:-.01em}
+.q{color:var(--muted);margin:0 0 14px;font-size:1.02rem}
+h2{font-size:1.1rem;margin:0 0 6px}
+h3{font-size:.98rem;margin:0 0 6px;color:var(--muted);font-weight:600}
+.tabs{display:flex;gap:6px;flex-wrap:wrap;border-bottom:1px solid var(--line);margin-bottom:14px}
+.tabs button{appearance:none;border:1px solid transparent;border-bottom:none;background:none;color:var(--muted);font:inherit;font-weight:600;padding:8px 14px;border-radius:8px 8px 0 0;cursor:pointer;margin-bottom:-1px}
+.tabs button[aria-selected=true]{background:var(--panel);color:var(--fg);border-color:var(--line)}
+section.tab{display:none}
+section.tab.on{display:block}
+.eq{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:8px 14px;margin-bottom:12px;overflow-x:auto}
+.eq .d{margin:4px 0}
+math{font-size:1.08em}
+math [mathvariant=bold]{font-weight:700;font-style:normal}
+math [mathvariant=bold-italic]{font-weight:700}
+.grid2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px}
+.grid-side{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);gap:12px}
+@media (max-width:860px){.grid2,.grid-side{grid-template-columns:minmax(0,1fr)}}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px 12px;min-width:0}
+.cap{font-size:.85rem;color:var(--muted);margin:4px 0 0}
+canvas{display:block;width:100%;touch-action:none}
+.sq{aspect-ratio:1/1}
+.plot{aspect-ratio:2.7/1;min-height:120px}
+.springs{height:170px}
+.controls{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:6px 16px;margin:6px 0}
+label.sl{display:flex;flex-direction:column;font-size:.95rem}
+label.sl b{font-variant-numeric:tabular-nums;font-weight:600}
+input[type=range]{width:100%;accent-color:var(--c2)}
+.btns{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0}
+button.b{font:inherit;font-size:.92rem;padding:5px 11px;border-radius:7px;border:1px solid var(--line);background:var(--bg);color:var(--fg);cursor:pointer}
+button.b:hover{border-color:var(--muted)}
+button.b.pri{background:var(--c2);border-color:var(--c2);color:var(--panel)}
+.read{display:grid;gap:6px;margin-top:4px}
+.rrow{padding:6px 10px;border-radius:8px;background:var(--bg);overflow-x:auto}
+.sw{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:6px;vertical-align:-1px}
+.note{padding:8px 12px;border-radius:8px;border-left:4px solid var(--c2);background:var(--bg);font-size:.95rem}
+.note.warn{border-left-color:var(--c1)}
+.status{padding:8px 12px;border-radius:8px;background:var(--bg);font-size:.95rem;border:2px solid transparent}
+.status.on{border-color:var(--hot);background:var(--okbg)}
+.nums{font-variant-numeric:tabular-nums}
+.kv{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:4px 14px;font-size:.93rem}
+.kv span b{font-variant-numeric:tabular-nums}
+ul.notice{margin:4px 0 0;padding-left:20px}
+ul.notice li{margin:3px 0}
+details{margin-top:10px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:8px 12px}
+details summary{cursor:pointer;font-weight:600}
+details p,details li{font-size:.93rem;color:var(--muted)}
+.mt{margin-top:12px}
+</style>
+</head>
+<body>
+<script src="../lab-back.js" defer></script><!-- added for louisvrh.github.io/lab: back link -->
+<main>
+  <h1>Normal modes are the axes of the potential bowl</h1>
+  <p class="q">Why are the normal modes of <span data-tex="m\ddot{\mathbf h}=-K\mathbf h"></span> the eigenvectors of <span data-tex="K"></span>? Because they are the principal axes of the bowl <span data-tex="V=\tfrac12\mathbf h^{T}K\mathbf h"></span>, the only directions where the force points straight back along the line.</p>
+
+  <nav class="tabs" role="tablist">
+    <button role="tab" data-tab="bowl" aria-selected="true">1 · The bowl</button>
+    <button role="tab" data-tab="well" aria-selected="false">2a · Elliptical well</button>
+    <button role="tab" data-tab="coupled" aria-selected="false">2b · Two coupled masses</button>
+  </nav>
+
+  <!-- ===================== PART 1 ===================== -->
+  <section class="tab on" id="tab-bowl">
+    <div class="eq">
+      <div class="d" data-tex="V(\mathbf h)=\tfrac12\,\mathbf h^{T}K\mathbf h,\qquad \mathbf F=-\nabla V=-K\mathbf h,\qquad K\mathbf e_i=\lambda_i\mathbf e_i"></div>
+      <div class="d" data-tex="\mathbf h=a\,\mathbf e_1+b\,\mathbf e_2\ \ (a=\mathbf e_1\!\cdot\mathbf h,\ b=\mathbf e_2\!\cdot\mathbf h)\quad\Longrightarrow\quad V=\tfrac12\left(\lambda_1a^2+\lambda_2b^2\right)"></div>
+    </div>
+
+    <div class="grid2">
+      <div class="card">
+        <h3>Contours of V(h, k): drag the point h</h3>
+        <canvas id="cv-contour" class="sq" aria-label="Contour plot of V with eigenvector arrows and a draggable point h"></canvas>
+        <p class="cap">Thin lines: contours of V. Arrows: eigenvectors, labelled with λ. Black arrow: <b>h</b>. Purple: <b>Kh</b> (drawn at scale 1/|λ|<sub>max</sub>). Green: force <b>−Kh</b> acting at <b>h</b>. Dashed: the rotated coordinates a, b.</p>
+      </div>
+      <div class="card">
+        <h3>Surface V(h, k): drag to rotate</h3>
+        <canvas id="cv-3d" class="sq" aria-label="Rotatable 3D surface of V"></canvas>
+        <p class="cap">Coloured curves are the cross-sections along e<sub>1</sub> and e<sub>2</sub>: parabolas <span data-tex="V=\tfrac12\lambda_i s^2"></span>. Vertical scale is fitted so the steepest direction reaches the rim at |h| = 2.</p>
+      </div>
+    </div>
+
+    <div class="grid2 mt">
+      <div class="card">
+        <h3>The matrix K</h3>
+        <div class="controls">
+          <label class="sl"><span>K<sub>11</sub> = <b id="K11-v"></b></span><input type="range" id="K11" min="-4" max="6" step="0.1"></label>
+          <label class="sl"><span>K<sub>12</sub> = K<sub>21</sub> = <b id="K12-v"></b></span><input type="range" id="K12" min="-4" max="4" step="0.1"></label>
+          <label class="sl"><span>K<sub>22</sub> = <b id="K22-v"></b></span><input type="range" id="K22" min="-4" max="6" step="0.1"></label>
+        </div>
+        <div class="btns">
+          <button class="b" data-k="3,1,3">Default (3 1; 1 3)</button>
+          <button class="b" data-k="4,0,1">Diagonal</button>
+          <button class="b" data-k="2,0,2">Degenerate (circular)</button>
+          <button class="b" data-k="2,-1,2">Coupled springs (2 −1; −1 2)</button>
+          <button class="b" data-k="1,2,1">Indefinite (saddle)</button>
+          <button class="b" data-k="1,1,1">Singular (valley)</button>
+        </div>
+        <div class="read">
+          <div class="rrow" id="r-K"></div>
+          <div class="rrow" id="r-e1"></div>
+          <div class="rrow" id="r-e2"></div>
+          <div class="note" id="r-note"></div>
+        </div>
+      </div>
+      <div class="card">
+        <h3>The point h, in both coordinate systems</h3>
+        <div class="btns">
+          <button class="b" id="h-e1">Put h on e₁</button>
+          <button class="b" id="h-e2">Put h on e₂</button>
+          <button class="b" id="h-off">Put h off-axis</button>
+        </div>
+        <div class="read">
+          <div class="rrow" id="r-h"></div>
+          <div class="rrow" id="r-ab"></div>
+          <div class="rrow" id="r-V"></div>
+          <div class="rrow" id="r-Kh"></div>
+          <div class="status" id="r-par"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card mt">
+      <h2>What to notice</h2>
+      <ul class="notice">
+        <li>Drag <b>h</b> around a contour. <b>Kh</b> is always perpendicular to the contour (it is ∇V), so it lines up with <b>h</b> only where the contour is perpendicular to the radius: at the ends of the ellipse's axes. Those are the eigenvectors.</li>
+        <li>On an eigenvector the force <b>−Kh = −λh</b> points straight back at the origin, so released from rest the point oscillates along that line at <span data-tex="\omega^2=\lambda/m"></span>: a normal mode. Anywhere else the force has a sideways part and the two directions mix.</li>
+        <li>In the rotated coordinates there is no <span data-tex="ab"></span> cross term, so <span data-tex="V=\tfrac12(\lambda_1a^2+\lambda_2b^2)"></span>: two independent 1D springs. The steep axis (large λ) is the fast mode and the shallow axis is the slow mode.</li>
+      </ul>
+    </div>
+    <details>
+      <summary>Model and assumptions</summary>
+      <ul>
+        <li>K is real symmetric, so its eigenvalues are real and its eigenvectors orthogonal. They are found in closed form: <span data-tex="\lambda_{1,2}=\tfrac12(K_{11}+K_{22})\pm\sqrt{\tfrac14(K_{11}-K_{22})^2+K_{12}^2}"></span>, with e<sub>1</sub> at angle <span data-tex="\theta=\tfrac12\operatorname{atan2}(2K_{12},K_{11}-K_{22})"></span>. Ordering: λ<sub>1</sub> ≥ λ<sub>2</sub>.</li>
+        <li>"Parallel" is flagged when the angle between <b>h</b> and <b>Kh</b> is within 2° of 0° or 180°; dragging within 1.2° of an eigenvector snaps onto it.</li>
+        <li>Equal masses (M = mI) are assumed throughout, so the normal modes are the eigenvectors of K itself. With unequal masses you would solve <span data-tex="K\mathbf e=\omega^2M\mathbf e"></span> instead.</li>
+        <li>Plot domain: |h|, |k| ≤ 2.2 (contours), disc |h| ≤ 2 (surface).</li>
+      </ul>
+    </details>
+  </section>
+
+  <!-- ===================== PART 2a ===================== -->
+  <section class="tab" id="tab-well">
+    <div class="eq">
+      <div class="d" data-tex="m\ddot{\mathbf h}=-K\mathbf h,\quad K=\begin{pmatrix}k_1&amp;0\\0&amp;k_2\end{pmatrix}\ \Longrightarrow\ x(t)=X\cos(\omega_1t+\phi_1),\ \ y(t)=Y\cos(\omega_2t+\phi_2),\quad \omega_i=\sqrt{k_i/m}"></div>
+    </div>
+    <div class="grid-side">
+      <div class="card">
+        <h3>Trajectory in the (x, y) plane: drag to set the start point</h3>
+        <canvas id="cv-well" class="sq" aria-label="Mass moving in an elliptical well, tracing a Lissajous curve"></canvas>
+        <p class="cap">Faint curve: the full Lissajous figure. Dashed rectangle: |x| ≤ X, |y| ≤ Y (each mode keeps its own energy). Dashed ellipse: V = E. Coloured dots on the axes: the two mode coordinates.</p>
+      </div>
+      <div class="card">
+        <h3>The motion is two independent modes</h3>
+        <canvas id="cv-wx" class="plot" aria-label="x of t"></canvas>
+        <canvas id="cv-wy" class="plot mt" aria-label="y of t"></canvas>
+        <div class="kv mt nums" id="w-read"></div>
+        <div class="note mt" id="w-note"></div>
+      </div>
+    </div>
+    <div class="card mt">
+      <div class="btns">
+        <button class="b pri" id="w-play">Pause</button>
+        <button class="b" id="w-reset">Restart</button>
+        <button class="b" id="w-step">Step</button>
+        <span style="width:12px"></span>
+        <button class="b" data-wp="1:1">ω₂:ω₁ = 1:1 (ellipse)</button>
+        <button class="b" data-wp="2:1">2:1 (figure of eight)</button>
+        <button class="b" data-wp="3:2">3:2</button>
+        <button class="b" data-wp="irr">√2 (never closes)</button>
+        <button class="b" data-wp="mode">Pure mode 1</button>
+      </div>
+      <div class="controls">
+        <label class="sl"><span>k<sub>1</sub> = <b id="k1-v"></b></span><input type="range" id="k1" min="0.25" max="9" step="0.05"></label>
+        <label class="sl"><span>k<sub>2</sub> = <b id="k2-v"></b></span><input type="range" id="k2" min="0.25" max="9" step="0.05"></label>
+        <label class="sl"><span>x<sub>0</sub> = <b id="x0-v"></b></span><input type="range" id="x0" min="-1.5" max="1.5" step="0.05"></label>
+        <label class="sl"><span>y<sub>0</sub> = <b id="y0-v"></b></span><input type="range" id="y0" min="-1.5" max="1.5" step="0.05"></label>
+        <label class="sl"><span>v<sub>x0</sub> = <b id="vx0-v"></b></span><input type="range" id="vx0" min="-3" max="3" step="0.05"></label>
+        <label class="sl"><span>v<sub>y0</sub> = <b id="vy0-v"></b></span><input type="range" id="vy0" min="-3" max="3" step="0.05"></label>
+        <label class="sl"><span>speed = <b id="wspeed-v"></b>×</span><input type="range" id="wspeed" min="0.1" max="4" step="0.1"></label>
+      </div>
+    </div>
+    <div class="card mt">
+      <h2>What to notice</h2>
+      <ul class="notice">
+        <li>Because K is already diagonal, x and y <i>are</i> the normal coordinates: the 2D path is just two 1D oscillations played at once, and the dots on the axes never interact.</li>
+        <li>E<sub>x</sub> and E<sub>y</sub> are separately constant, so the path is trapped in the rectangle |x| ≤ X, |y| ≤ Y, a tighter constraint than energy alone (the ellipse V = E).</li>
+        <li>If ω<sub>2</sub>/ω<sub>1</sub> is rational the curve closes. If it is irrational, like √2, it never repeats and eventually fills the rectangle.</li>
+      </ul>
+    </div>
+    <details>
+      <summary>Model and assumptions</summary>
+      <ul>
+        <li>m = 1, arbitrary units; time is in units where k = m = 1 gives ω = 1.</li>
+        <li>Exact solution, evaluated at each frame: <span data-tex="x=x_0\cos\omega_1t+(v_{x0}/\omega_1)\sin\omega_1t"></span>, and the same for y. No numerical integration, so there is no energy drift. The core was checked against a velocity-Verlet integration.</li>
+        <li>Changing any slider restarts the motion from the new initial conditions.</li>
+      </ul>
+    </details>
+  </section>
+
+  <!-- ===================== PART 2b ===================== -->
+  <section class="tab" id="tab-coupled">
+    <div class="eq">
+      <div class="d" data-tex="m\ddot x_1=-\kappa x_1-\kappa_c(x_1-x_2),\quad m\ddot x_2=-\kappa x_2-\kappa_c(x_2-x_1)\quad\Longrightarrow\quad K=\begin{pmatrix}\kappa+\kappa_c&amp;-\kappa_c\\-\kappa_c&amp;\kappa+\kappa_c\end{pmatrix}\ \overset{\kappa_c=\kappa}{=}\ \kappa\begin{pmatrix}2&amp;-1\\-1&amp;2\end{pmatrix}"></div>
+      <div class="d" data-tex="a=\tfrac{1}{\sqrt2}(x_1+x_2),\ \ b=\tfrac{1}{\sqrt2}(x_1-x_2):\qquad m\ddot a=-\kappa\,a,\qquad m\ddot b=-(\kappa+2\kappa_c)\,b"></div>
+    </div>
+    <div class="card">
+      <h3>The physical system</h3>
+      <canvas id="cv-springs" class="springs" aria-label="Two masses joined by three springs"></canvas>
+      <p class="cap">Bars under the masses: each mass's share of the energy (the middle spring's energy is split equally between them).</p>
+    </div>
+    <div class="grid-side mt">
+      <div class="card">
+        <h3>Configuration space (x₁, x₂): click to set the start point</h3>
+        <canvas id="cv-config" class="sq" aria-label="Trajectory in x1 x2 space with eigen axes"></canvas>
+        <p class="cap">Ellipses: contours of V. Green axis: a (in-phase mode). Purple axis: b (anti-phase mode). The dots on those axes are a(t) and b(t).</p>
+      </div>
+      <div class="card">
+        <h3>Masses vs modes</h3>
+        <canvas id="cv-x" class="plot" aria-label="x1 and x2 against time"></canvas>
+        <canvas id="cv-ab" class="plot mt" aria-label="a and b against time"></canvas>
+        <canvas id="cv-E" class="plot mt" aria-label="Energies against time"></canvas>
+        <div class="kv mt nums" id="c-read"></div>
+      </div>
+    </div>
+    <div class="card mt">
+      <div class="btns">
+        <button class="b pri" id="c-play">Pause</button>
+        <button class="b" id="c-reset">Restart</button>
+        <button class="b" id="c-step">Step</button>
+        <span style="width:12px"></span>
+        <button class="b" id="c-in">In-phase mode</button>
+        <button class="b" id="c-anti">Anti-phase mode</button>
+        <button class="b" id="c-pull">Pull one mass aside and release</button>
+        <span style="width:12px"></span>
+        <button class="b" id="c-eq">κ<sub>c</sub> = κ (as in notes)</button>
+        <button class="b" id="c-weak">Weak coupling κ<sub>c</sub> = 0.1κ</button>
+      </div>
+      <div class="controls">
+        <label class="sl"><span>κ = <b id="kap-v"></b></span><input type="range" id="kap" min="0.2" max="3" step="0.05"></label>
+        <label class="sl"><span>κ<sub>c</sub> (middle spring) = <b id="kc-v"></b></span><input type="range" id="kc" min="0" max="3" step="0.05"></label>
+        <label class="sl"><span>m = <b id="mass-v"></b></span><input type="range" id="mass" min="0.5" max="3" step="0.05"></label>
+        <label class="sl"><span>amplitude A = <b id="amp-v"></b></span><input type="range" id="amp" min="0.2" max="1.2" step="0.05"></label>
+        <label class="sl"><span>speed = <b id="cspeed-v"></b>×</span><input type="range" id="cspeed" min="0.1" max="6" step="0.1"></label>
+      </div>
+      <div class="note" id="c-note"></div>
+    </div>
+    <div class="card mt">
+      <h2>What to notice</h2>
+      <ul class="notice">
+        <li><b>In-phase</b> starts on the a-axis and stays there (b = 0): the middle spring is never stretched, so ω<sub>a</sub> = √(κ/m). <b>Anti-phase</b> stays on the b-axis, with ω<sub>b</sub> = √((κ+2κ<sub>c</sub>)/m). Each is a straight-line motion through the bowl along an eigenvector.</li>
+        <li><b>Pull one aside</b>: x<sub>1</sub>(t) and x<sub>2</sub>(t) are tangled, and energy sloshes from mass 1 to mass 2 and back. But a(t) and b(t) are clean sinusoids and E<sub>a</sub>, E<sub>b</sub> (dashed) are constant. The modes never exchange energy; only the masses do.</li>
+        <li>Try <b>weak coupling</b>: ω<sub>a</sub> ≈ ω<sub>b</sub>, so x<sub>1</sub> = A cos(½(ω<sub>b</sub>−ω<sub>a</sub>)t) cos(½(ω<sub>a</sub>+ω<sub>b</sub>)t) shows clean beats, and all the energy moves to mass 2 after t = π/(ω<sub>b</sub>−ω<sub>a</sub>).</li>
+      </ul>
+    </div>
+    <details>
+      <summary>Model and assumptions</summary>
+      <ul>
+        <li>Wall–κ–m–κ<sub>c</sub>–m–κ–wall. Your notes' case of three identical springs is κ<sub>c</sub> = κ (the default). The extra κ<sub>c</sub> slider is there so you can weaken the coupling and see slow beats.</li>
+        <li>Arbitrary units, with defaults m = κ = 1. Small oscillations, no damping, no gravity. Spring displacements in the drawing are exaggerated (1 unit is 10% of the wall-to-wall distance).</li>
+        <li>Exact normal-mode solution evaluated at each frame, with no integrator and no drift. The core was checked against velocity Verlet with dt = 10⁻³: the two agree to 3×10⁻⁴ after 20 periods. E<sub>1</sub> + E<sub>2</sub> = E<sub>a</sub> + E<sub>b</sub> holds to 10⁻¹⁵.</li>
+        <li>Mass energies: <span data-tex="E_i=\tfrac12m\dot x_i^2+\tfrac12\kappa x_i^2+\tfrac14\kappa_c(x_1-x_2)^2"></span>. Mode energies: <span data-tex="E_a=\tfrac12m(\dot a^2+\omega_a^2a^2)"></span> and the same for b.</li>
+      </ul>
+    </details>
+  </section>
+</main>
+
+<script>
+// Physics core for the normal-modes visualiser. No DOM code.
+const Core = (function () {
+  const TOL = 1e-6;
+
+  // Eigen-decomposition of the symmetric matrix [[K11, K12], [K12, K22]].
+  // Returns l1 >= l2 with unit eigenvectors e1, e2 (right-handed pair).
+  function eig2(K11, K12, K22) {
+    const m = 0.5 * (K11 + K22);
+    const r = Math.hypot(0.5 * (K11 - K22), K12);
+    const l1 = m + r, l2 = m - r;
+    const th = r < 1e-12 ? 0 : 0.5 * Math.atan2(2 * K12, K11 - K22);
+    const c = Math.cos(th), s = Math.sin(th);
+    return { l1, l2, th, e1: [c, s], e2: [-s, c], degenerate: r < TOL };
+  }
+
+  function classify(l1, l2) {
+    const z = (x) => Math.abs(x) < TOL;
+    if (z(l1) && z(l2)) return 'flat';
+    if (l2 > TOL) return (l1 - l2 < TOL) ? 'circular' : 'bowl';
+    if (z(l2)) return 'valley';            // l1 > 0, l2 = 0
+    if (l1 > TOL) return 'saddle';         // l1 > 0 > l2
+    if (z(l1)) return 'ridge';             // l1 = 0 > l2
+    return (l1 - l2 < TOL) ? 'dome-circular' : 'dome';
+  }
+
+  function V(K, h, k) { return 0.5 * (K.K11 * h * h + 2 * K.K12 * h * k + K.K22 * k * k); }
+  function applyK(K, h, k) { return [K.K11 * h + K.K12 * k, K.K12 * h + K.K22 * k]; }
+  function modal(E, h, k) {
+    return { a: E.e1[0] * h + E.e1[1] * k, b: E.e2[0] * h + E.e2[1] * k };
+  }
+  function Vmodal(E, a, b) { return 0.5 * (E.l1 * a * a + E.l2 * b * b); }
+
+  // How parallel are h and Kh?  sin of the angle between them, and the
+  // Rayleigh quotient (h.Kh)/|h|^2 which equals lambda on an eigenvector.
+  function parallel(K, h, k) {
+    const Kh = applyK(K, h, k);
+    const nh = Math.hypot(h, k), nK = Math.hypot(Kh[0], Kh[1]);
+    const ray = nh > 0 ? (h * Kh[0] + k * Kh[1]) / (nh * nh) : 0;
+    if (nh < 1e-12) return { Kh, sin: 0, angle: 0, ray, zero: true };
+    if (nK < 1e-9 * Math.max(1, nh)) return { Kh, sin: 0, angle: 0, ray: 0, zero: true };
+    const cr = (h * Kh[1] - k * Kh[0]) / (nh * nK);
+    const dt = (h * Kh[0] + k * Kh[1]) / (nh * nK);
+    return { Kh, sin: cr, angle: Math.atan2(cr, dt), ray, zero: false };
+  }
+
+  // ---- Part 2a: mass in an elliptical well, K = diag(k1, k2). Exact solution.
+  function wellFreqs(p) { return { w1: Math.sqrt(p.k1 / p.m), w2: Math.sqrt(p.k2 / p.m) }; }
+  function wellState(p, t) {
+    const { w1, w2 } = wellFreqs(p);
+    const c1 = Math.cos(w1 * t), s1 = Math.sin(w1 * t);
+    const c2 = Math.cos(w2 * t), s2 = Math.sin(w2 * t);
+    const x = p.x0 * c1 + (p.vx0 / w1) * s1, vx = -p.x0 * w1 * s1 + p.vx0 * c1;
+    const y = p.y0 * c2 + (p.vy0 / w2) * s2, vy = -p.y0 * w2 * s2 + p.vy0 * c2;
+    const Ex = 0.5 * p.m * vx * vx + 0.5 * p.k1 * x * x;
+    const Ey = 0.5 * p.m * vy * vy + 0.5 * p.k2 * y * y;
+    return { x, y, vx, vy, Ex, Ey, E: Ex + Ey };
+  }
+  function wellAmps(p) {
+    const { w1, w2 } = wellFreqs(p);
+    return { X: Math.hypot(p.x0, p.vx0 / w1), Y: Math.hypot(p.y0, p.vy0 / w2) };
+  }
+
+  // ---- Part 2b: two equal masses, wall-kap-m-kc-m-kap-wall. Exact solution.
+  // a = (x1 + x2)/sqrt2 (in-phase), b = (x1 - x2)/sqrt2 (anti-phase).
+  const R2 = Math.SQRT1_2;
+  function coupledK(p) { return { K11: p.kap + p.kc, K12: -p.kc, K22: p.kap + p.kc }; }
+  function coupledFreqs(p) {
+    return { wa: Math.sqrt(p.kap / p.m), wb: Math.sqrt((p.kap + 2 * p.kc) / p.m) };
+  }
+  function coupledModal0(p) {
+    return {
+      a0: R2 * (p.x10 + p.x20), b0: R2 * (p.x10 - p.x20),
+      va0: R2 * (p.v10 + p.v20), vb0: R2 * (p.v10 - p.v20),
+    };
+  }
+  function coupledState(p, t) {
+    const { wa, wb } = coupledFreqs(p);
+    const { a0, b0, va0, vb0 } = coupledModal0(p);
+    const ca = Math.cos(wa * t), sa = Math.sin(wa * t);
+    const cb = Math.cos(wb * t), sb = Math.sin(wb * t);
+    const a = a0 * ca + (va0 / wa) * sa, va = -a0 * wa * sa + va0 * ca;
+    const b = b0 * cb + (vb0 / wb) * sb, vb = -b0 * wb * sb + vb0 * cb;
+    const x1 = R2 * (a + b), x2 = R2 * (a - b);
+    const v1 = R2 * (va + vb), v2 = R2 * (va - vb);
+    const sh = 0.25 * p.kc * (x1 - x2) * (x1 - x2); // coupling-spring energy, split evenly
+    const E1 = 0.5 * p.m * v1 * v1 + 0.5 * p.kap * x1 * x1 + sh;
+    const E2 = 0.5 * p.m * v2 * v2 + 0.5 * p.kap * x2 * x2 + sh;
+    const Ea = 0.5 * p.m * (va * va + wa * wa * a * a);
+    const Eb = 0.5 * p.m * (vb * vb + wb * wb * b * b);
+    return { x1, x2, v1, v2, a, b, va, vb, E1, E2, Ea, Eb, E: E1 + E2 };
+  }
+  function coupledAmps(p) {
+    const { wa, wb } = coupledFreqs(p);
+    const { a0, b0, va0, vb0 } = coupledModal0(p);
+    return { A: Math.hypot(a0, va0 / wa), B: Math.hypot(b0, vb0 / wb) };
+  }
+
+  // Reference integrator (velocity Verlet) for M x'' = -K x, used only in tests.
+  function verletCoupled(p, T, dt) {
+    const K = coupledK(p);
+    let x1 = p.x10, x2 = p.x20, v1 = p.v10, v2 = p.v20;
+    const acc = (x1, x2) => [-(K.K11 * x1 + K.K12 * x2) / p.m, -(K.K12 * x1 + K.K22 * x2) / p.m];
+    let [a1, a2] = acc(x1, x2);
+    const n = Math.round(T / dt);
+    for (let i = 0; i < n; i++) {
+      v1 += 0.5 * dt * a1; v2 += 0.5 * dt * a2;
+      x1 += dt * v1; x2 += dt * v2;
+      [a1, a2] = acc(x1, x2);
+      v1 += 0.5 * dt * a1; v2 += 0.5 * dt * a2;
+    }
+    return { x1, x2, v1, v2 };
+  }
+
+  return {
+    eig2, classify, V, applyK, modal, Vmodal, parallel,
+    wellFreqs, wellState, wellAmps,
+    coupledK, coupledFreqs, coupledState, coupledAmps, verletCoupled,
+  };
+})();
+if (typeof module !== 'undefined') module.exports = Core;
+
+</script>
+<script>
+(function () {
+'use strict';
+const $ = (id) => document.getElementById(id);
+const R2 = Math.SQRT1_2;
+
+// ---------- palette & helpers ----------
+let PAL = {};
+const PAL_NAMES = ['bg','panel','fg','muted','line','grid','c1','c2','ck','cf','hot','x1','x2','ca','cb','pos','neg','posl','negl'];
+function readPal() {
+  const cs = getComputedStyle(document.documentElement);
+  for (const n of PAL_NAMES) PAL[n] = cs.getPropertyValue('--' + n).trim();
+}
+readPal();
+function hexRgb(h) {
+  h = h.replace('#', '');
+  if (h.length === 3) h = h.split('').map((c) => c + c).join('');
+  const n = parseInt(h, 16);
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+}
+const DPR = () => Math.min(window.devicePixelRatio || 1, 2.5);
+function fit(cv) {
+  const r = cv.getBoundingClientRect(), d = DPR();
+  const w = Math.max(20, Math.round(r.width)), h = Math.max(20, Math.round(r.height));
+  const W = Math.round(w * d), H = Math.round(h * d);
+  if (cv.width !== W || cv.height !== H) { cv.width = W; cv.height = H; }
+  const ctx = cv.getContext('2d');
+  ctx.setTransform(d, 0, 0, d, 0, 0);
+  return { ctx, w, h };
+}
+function fmt(x, d = 2) {
+  if (!isFinite(x)) return '∞';
+  if (Math.abs(x) < 0.5 * Math.pow(10, -d)) x = 0;
+  return x.toFixed(d).replace('-', '−');
+}
+function tf(x, d = 2) { // number for TeX
+  if (Math.abs(x) < 0.5 * Math.pow(10, -d)) x = 0;
+  return x.toFixed(d);
+}
+function tex(el, s, display) {
+  if (window.katex) {
+    try { katex.render(s, el, { output: 'mathml', displayMode: !!display, throwOnError: false }); return; } catch (e) { /* fall through */ }
+  }
+  el.textContent = s;
+}
+document.querySelectorAll('[data-tex]').forEach((el) => tex(el, el.dataset.tex, el.classList.contains('d')));
+
+function arrow(ctx, x0, y0, x1, y1, color, lw = 2, head = 10, dash = null) {
+  const dx = x1 - x0, dy = y1 - y0, L = Math.hypot(dx, dy);
+  if (L < 1.5) return;
+  const ux = dx / L, uy = dy / L, hl = Math.min(head, L * 0.6);
+  ctx.save();
+  ctx.strokeStyle = color; ctx.fillStyle = color; ctx.lineWidth = lw; ctx.lineCap = 'round';
+  if (dash) ctx.setLineDash(dash);
+  ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1 - ux * hl * 0.7, y1 - uy * hl * 0.7); ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.beginPath(); ctx.moveTo(x1, y1);
+  ctx.lineTo(x1 - ux * hl - uy * hl * 0.45, y1 - uy * hl + ux * hl * 0.45);
+  ctx.lineTo(x1 - ux * hl + uy * hl * 0.45, y1 - uy * hl - ux * hl * 0.45);
+  ctx.closePath(); ctx.fill();
+  ctx.restore();
+}
+function label(ctx, text, x, y, color, o = {}) {
+  ctx.save();
+  ctx.font = (o.bold ? '600 ' : '') + (o.size || 14) + 'px system-ui, -apple-system, "Segoe UI", sans-serif';
+  ctx.textAlign = o.align || 'left'; ctx.textBaseline = o.base || 'middle';
+  ctx.lineJoin = 'round'; ctx.lineWidth = 4; ctx.strokeStyle = o.halo || PAL.panel;
+  ctx.strokeText(text, x, y);
+  ctx.fillStyle = color; ctx.fillText(text, x, y);
+  ctx.restore();
+}
+// Place a label near (x,y) but keep it inside the canvas
+function labelIn(ctx, text, x, y, color, w, h, o = {}) {
+  ctx.save();
+  ctx.font = (o.bold ? '600 ' : '') + (o.size || 14) + 'px system-ui, sans-serif';
+  const tw = ctx.measureText(text).width;
+  ctx.restore();
+  let align = 'left', lx = x + 8;
+  if (lx + tw > w - 4) { align = 'right'; lx = x - 8; }
+  if (align === 'right' && lx - tw < 4) { align = 'center'; lx = Math.min(Math.max(x, tw / 2 + 4), w - tw / 2 - 4); }
+  const ly = Math.min(Math.max(y, 12), h - 12);
+  label(ctx, text, lx, ly, color, Object.assign({}, o, { align }));
+}
+function spring(ctx, xa, xb, y, color, n = 10, amp = 9, lw = 2) {
+  const L = xb - xa, lead = Math.min(10, Math.abs(L) * 0.15);
+  ctx.save(); ctx.strokeStyle = color; ctx.lineWidth = lw; ctx.lineJoin = 'round';
+  ctx.beginPath(); ctx.moveTo(xa, y); ctx.lineTo(xa + lead, y);
+  const seg = (L - 2 * lead) / (2 * n);
+  for (let i = 0; i < 2 * n; i++) ctx.lineTo(xa + lead + seg * (i + 0.5), y + (i % 2 ? amp : -amp));
+  ctx.lineTo(xb - lead, y); ctx.lineTo(xb, y); ctx.stroke(); ctx.restore();
+}
+
+// Rolling time-series plot. series: [{f, color, label, dash}]
+function timePlot(cv, tNow, win, series, o) {
+  const { ctx, w, h } = fit(cv);
+  ctx.clearRect(0, 0, w, h);
+  const pl = 46, pr = 10, pt = 10, pb = 22;
+  const t0 = Math.max(0, tNow - win), tA = tNow < win ? 0 : tNow - win, tB = tA + win;
+  const ymin = o.ymin, ymax = o.ymax;
+  const X = (t) => pl + (t - tA) / (tB - tA) * (w - pl - pr);
+  const Y = (v) => pt + (ymax - v) / (ymax - ymin) * (h - pt - pb);
+  // frame
+  ctx.strokeStyle = PAL.line; ctx.lineWidth = 1;
+  ctx.strokeRect(pl + 0.5, pt + 0.5, w - pl - pr - 1, h - pt - pb - 1);
+  if (ymin < 0 && ymax > 0) { ctx.strokeStyle = PAL.grid; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(pl, Y(0)); ctx.lineTo(w - pr, Y(0)); ctx.stroke(); }
+  // time ticks
+  const step = niceStep(win / 5);
+  ctx.fillStyle = PAL.muted; ctx.font = '12px system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+  for (let t = Math.ceil(tA / step) * step; t <= tB + 1e-9; t += step) {
+    const x = X(t);
+    ctx.strokeStyle = PAL.grid; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(x, pt); ctx.lineTo(x, h - pb); ctx.stroke();
+    ctx.fillText(fmt(t, step < 1 ? 1 : 0), x, h - pb + 4);
+  }
+  ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+  ctx.fillText(fmt(ymax, 2), pl - 4, pt + 6);
+  ctx.fillText(fmt(ymin, 2), pl - 4, h - pb - 6);
+  ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+  label(ctx, 't', w - pr - 6, h - pb - 10, PAL.muted, { size: 13, align: 'right' });
+  // curves
+  ctx.save(); ctx.beginPath(); ctx.rect(pl, pt, w - pl - pr, h - pt - pb); ctx.clip();
+  const n = 500;
+  for (const s of series) {
+    ctx.strokeStyle = s.color; ctx.lineWidth = s.width || 2; ctx.setLineDash(s.dash || []);
+    ctx.beginPath();
+    for (let i = 0; i <= n; i++) {
+      const t = t0 + (tNow - t0) * i / n, v = s.f(t);
+      if (i === 0) ctx.moveTo(X(t), Y(v)); else ctx.lineTo(X(t), Y(v));
+    }
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = s.color; ctx.beginPath(); ctx.arc(X(tNow), Y(s.f(tNow)), 3.5, 0, 7); ctx.fill();
+  }
+  ctx.restore();
+  // legend
+  let lx = pl + 8;
+  for (const s of series) {
+    if (!s.label) continue;
+    label(ctx, s.label, lx, pt + 12, s.color, { size: 13, bold: true });
+    ctx.font = '600 13px system-ui, sans-serif';
+    lx += ctx.measureText(s.label).width + 16;
+  }
+  if (o.ylabel) label(ctx, o.ylabel, 4, (pt + h - pb) / 2, PAL.muted, { size: 13 });
+}
+function niceStep(x) {
+  const p = Math.pow(10, Math.floor(Math.log10(x))), r = x / p;
+  return (r < 1.5 ? 1 : r < 3.5 ? 2 : r < 7.5 ? 5 : 10) * p;
+}
+
+// Generic slider binding
+function bindSlider(id, obj, key, dec, onChange) {
+  const el = $(id), out = $(id + '-v');
+  const upd = () => { out.textContent = fmt(obj[key], dec); };
+  el.value = obj[key]; upd();
+  el.addEventListener('input', () => { obj[key] = +el.value; upd(); onChange && onChange(); });
+  return { set(v) { obj[key] = v; el.value = v; upd(); } };
+}
+
+// =====================================================================
+// PART 1: the bowl
+// =====================================================================
+const P1 = { K11: 3, K12: 1, K22: 3, h: [1.2, 0.35], az: -0.75, el: 0.6 };
+const D1 = 2.2, SIN_TOL = Math.sin(2 * Math.PI / 180), SNAP = Math.sin(1.2 * Math.PI / 180);
+let EG = Core.eig2(3, 1, 3), CLS = 'bowl', bgCache = null, bgKey = '';
+
+const sK = {};
+for (const k of ['K11', 'K12', 'K22']) sK[k] = bindSlider(k, P1, k, 1, p1Changed);
+document.querySelectorAll('[data-k]').forEach((b) => b.addEventListener('click', () => {
+  const [a, c, d] = b.dataset.k.split(',').map(Number);
+  sK.K11.set(a); sK.K12.set(c); sK.K22.set(d); p1Changed();
+}));
+function p1Changed() {
+  EG = Core.eig2(P1.K11, P1.K12, P1.K22);
+  CLS = Core.classify(EG.l1, EG.l2);
+  drawP1();
+}
+function drawP1() { drawContour(); draw3D(); p1Readouts(); }
+
+function roles() {
+  switch (CLS) {
+    case 'bowl': return ['steep', 'shallow'];
+    case 'circular': return ['any direction', 'any direction'];
+    case 'valley': return ['steep', 'flat: λ = 0'];
+    case 'saddle': return ['uphill', 'downhill'];
+    case 'ridge': return ['flat: λ = 0', 'downhill'];
+    case 'dome': return ['gently downhill', 'steeply downhill'];
+    case 'dome-circular': return ['any direction', 'any direction'];
+    default: return ['flat', 'flat'];
+  }
+}
+const NOTES = {
+  bowl: ['', 'Positive definite (λ₁, λ₂ > 0): a bowl with elliptical contours whose axes are e₁ and e₂. The steep axis is the fast mode, ω₁ = √(λ₁/m), and the shallow axis is the slow mode, ω₂ = √(λ₂/m).'],
+  circular: ['', 'Degenerate: λ₁ = λ₂, so K = λI. The contours are circles and every direction is an eigenvector, so Kh ∥ h wherever you put h. The modes have equal frequencies and any orthogonal pair of directions serves as a normal-mode basis; the arrows shown are just one choice.'],
+  valley: ['warn', 'Singular (det K = 0, λ₂ = 0): a flat-bottomed valley along e₂. That is a zero-frequency mode: no restoring force at all along e₂, so the system just drifts (like the centre-of-mass motion of a free molecule).'],
+  saddle: ['warn', 'Indefinite (λ₁ > 0 > λ₂): a saddle, not a bowl. The eigenvectors are still the axes, but along e₂ the force −λ₂h points outward, so ω₂² < 0 and that "mode" grows exponentially: the equilibrium is unstable. Contours are hyperbolas; the dashed lines are V = 0.'],
+  ridge: ['warn', 'λ₁ = 0, λ₂ < 0: a ridge. Neutral along e₁, unstable along e₂.'],
+  dome: ['warn', 'Negative definite (both λ < 0): an upside-down bowl. Both eigen-directions are unstable; the eigenvectors still decouple the motion into two exponentials.'],
+  'dome-circular': ['warn', 'Degenerate and negative: a circular hill. Every direction is an (unstable) eigenvector.'],
+  flat: ['warn', 'K = 0: no potential, no force, no oscillation.'],
+};
+
+// ---- contour panel
+const cvC = $('cv-contour');
+function buildBg(w, h) {
+  const d = DPR(), off = document.createElement('canvas');
+  off.width = Math.round(w * d); off.height = Math.round(h * d);
+  const c = off.getContext('2d'); c.setTransform(d, 0, 0, d, 0, 0);
+  const K = P1, s = Math.max(Math.abs(EG.l1), Math.abs(EG.l2));
+  const X = (x) => (x + D1) / (2 * D1) * w, Y = (y) => (D1 - y) / (2 * D1) * h;
+  // heat map
+  const N = 150, img = document.createElement('canvas'); img.width = N; img.height = N;
+  const ic = img.getContext('2d'), id = ic.createImageData(N, N);
+  const pos = hexRgb(PAL.pos), neg = hexRgb(PAL.neg), bg = hexRgb(PAL.panel);
+  const Vs = Math.max(1e-9, 0.25 * s * D1 * D1);
+  for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
+    const x = -D1 + (i + 0.5) / N * 2 * D1, y = D1 - (j + 0.5) / N * 2 * D1;
+    const v = Core.V(K, x, y), t = Math.tanh(Math.abs(v) / Vs), col = v >= 0 ? pos : neg, o = 4 * (j * N + i);
+    for (let q = 0; q < 3; q++) id.data[o + q] = bg[q] + (col[q] - bg[q]) * t;
+    id.data[o + 3] = 255;
+  }
+  ic.putImageData(id, 0, 0);
+  c.imageSmoothingEnabled = true; c.drawImage(img, 0, 0, w, h);
+  // grid + axes
+  c.strokeStyle = PAL.line; c.lineWidth = 1;
+  for (let g = -2; g <= 2; g++) {
+    c.globalAlpha = g === 0 ? 1 : 0.45;
+    c.beginPath(); c.moveTo(X(g), 0); c.lineTo(X(g), h); c.moveTo(0, Y(g)); c.lineTo(w, Y(g)); c.stroke();
+  }
+  c.globalAlpha = 1;
+  c.fillStyle = PAL.muted; c.font = '12px system-ui, sans-serif'; c.textAlign = 'center'; c.textBaseline = 'top';
+  for (const g of [-2, -1, 1, 2]) { c.fillText(String(g).replace('-', '−'), X(g), Y(0) + 3); }
+  c.textAlign = 'right'; c.textBaseline = 'middle';
+  for (const g of [-2, -1, 1, 2]) { c.fillText(String(g).replace('-', '−'), X(0) - 4, Y(g)); }
+  c.font = 'italic 15px system-ui, sans-serif'; c.fillStyle = PAL.fg;
+  c.textAlign = 'right'; c.fillText('h', w - 6, Y(0) - 10);
+  c.textAlign = 'left'; c.fillText('k', X(0) + 6, 10);
+  // contours (marching squares)
+  if (s > 1e-9) {
+    const M = 120, G = new Float64Array((M + 1) * (M + 1));
+    for (let j = 0; j <= M; j++) for (let i = 0; i <= M; i++) G[j * (M + 1) + i] = Core.V(K, -D1 + 2 * D1 * i / M, -D1 + 2 * D1 * j / M);
+    const gx = (i) => X(-D1 + 2 * D1 * i / M), gy = (j) => Y(-D1 + 2 * D1 * j / M);
+    const levels = [];
+    for (let j = 1; j <= 16; j++) { const v = 0.5 * s * Math.pow(0.2 * j, 2); levels.push(v, -v); }
+    for (const L of levels) {
+      c.strokeStyle = L > 0 ? PAL.posl : PAL.negl; c.lineWidth = 1.1; c.beginPath();
+      for (let j = 0; j < M; j++) for (let i = 0; i < M; i++) {
+        const v = [G[j * (M + 1) + i], G[j * (M + 1) + i + 1], G[(j + 1) * (M + 1) + i + 1], G[(j + 1) * (M + 1) + i]];
+        const P = [[i, j], [i + 1, j], [i + 1, j + 1], [i, j + 1]];
+        const pts = [];
+        for (let e = 0; e < 4; e++) {
+          const a = v[e], b = v[(e + 1) % 4];
+          if ((a >= L) !== (b >= L)) {
+            const t = (L - a) / (b - a), pa = P[e], pb = P[(e + 1) % 4];
+            pts.push([gx(pa[0] + t * (pb[0] - pa[0])), gy(pa[1] + t * (pb[1] - pa[1]))]);
+          }
+        }
+        for (let q = 0; q + 1 < pts.length; q += 2) { c.moveTo(pts[q][0], pts[q][1]); c.lineTo(pts[q + 1][0], pts[q + 1][1]); }
+      }
+      c.stroke();
+    }
+    // saddle: V = 0 asymptotes
+    if (CLS === 'saddle') {
+      const r = Math.sqrt(-EG.l1 / EG.l2); // b = ±a*sqrt(l1/-l2)
+      c.setLineDash([6, 5]); c.strokeStyle = PAL.muted; c.lineWidth = 1.3; c.beginPath();
+      for (const sg of [1, -1]) {
+        const ua = 1, ub = sg * r; // direction in (a,b): a*e1 + b*e2 with b/a = ±sqrt(l1/-l2)
+        const dx = ua * EG.e1[0] + ub * EG.e2[0], dy = ua * EG.e1[1] + ub * EG.e2[1], n = Math.hypot(dx, dy);
+        const k = 4 / n; c.moveTo(X(-dx * k), Y(-dy * k)); c.lineTo(X(dx * k), Y(dy * k));
+      }
+      c.stroke(); c.setLineDash([]);
+    }
+  }
+  return off;
+}
+
+function hState() {
+  const [hx, hy] = P1.h;
+  const par = Core.parallel(P1, hx, hy), nh = Math.hypot(hx, hy);
+  let isPar;
+  if (nh < 0.03) isPar = false;
+  else if (par.zero) isPar = true;
+  else isPar = Math.abs(par.sin) < SIN_TOL;
+  return { hx, hy, par, nh, isPar };
+}
+
+function drawContour() {
+  const { ctx, w, h } = fit(cvC);
+  const key = [w, h, DPR(), P1.K11, P1.K12, P1.K22, PAL.panel].join('|');
+  if (key !== bgKey) { bgCache = buildBg(w, h); bgKey = key; }
+  ctx.clearRect(0, 0, w, h);
+  ctx.drawImage(bgCache, 0, 0, w, h);
+  const X = (x) => (x + D1) / (2 * D1) * w, Y = (y) => (D1 - y) / (2 * D1) * h;
+  const rl = roles();
+  const st = hState();
+  // eigenvector arrows
+  const Lr = 1.95;
+  [[EG.e1, EG.l1, PAL.c1, '₁', rl[0]], [EG.e2, EG.l2, PAL.c2, '₂', rl[1]]].forEach(([e, l, col, sub, role]) => {
+    const dash = EG.degenerate ? [7, 6] : null;
+    ctx.save(); ctx.strokeStyle = col; ctx.lineWidth = 2.5; ctx.globalAlpha = 0.9; if (dash) ctx.setLineDash(dash);
+    ctx.beginPath(); ctx.moveTo(X(-Lr * e[0]), Y(-Lr * e[1])); ctx.lineTo(X(0), Y(0)); ctx.stroke(); ctx.restore();
+    arrow(ctx, X(0), Y(0), X(Lr * e[0]), Y(Lr * e[1]), col, 3, 13, dash);
+    const tx = X(Lr * e[0]), ty = Y(Lr * e[1]);
+    labelIn(ctx, `e${sub}: λ${sub} = ${fmt(l)}  (${role})`, tx, ty + (e[1] >= 0 ? -18 : 18), col, w, h, { bold: true, size: 14 });
+  });
+  // a, b projections
+  const m = Core.modal(EG, st.hx, st.hy);
+  const pa = [m.a * EG.e1[0], m.a * EG.e1[1]], pb = [m.b * EG.e2[0], m.b * EG.e2[1]];
+  ctx.save(); ctx.setLineDash([4, 4]); ctx.lineWidth = 1.3;
+  ctx.strokeStyle = PAL.c1; ctx.beginPath(); ctx.moveTo(X(st.hx), Y(st.hy)); ctx.lineTo(X(pa[0]), Y(pa[1])); ctx.stroke();
+  ctx.strokeStyle = PAL.c2; ctx.beginPath(); ctx.moveTo(X(st.hx), Y(st.hy)); ctx.lineTo(X(pb[0]), Y(pb[1])); ctx.stroke();
+  ctx.restore();
+  ctx.fillStyle = PAL.c1; ctx.beginPath(); ctx.arc(X(pa[0]), Y(pa[1]), 4, 0, 7); ctx.fill();
+  ctx.fillStyle = PAL.c2; ctx.beginPath(); ctx.arc(X(pb[0]), Y(pb[1]), 4, 0, 7); ctx.fill();
+  if (Math.abs(m.a) > 0.15) label(ctx, 'a', X(pa[0]) - 12, Y(pa[1]) + 2, PAL.c1, { bold: true, size: 15, align: 'center' });
+  if (Math.abs(m.b) > 0.15) label(ctx, 'b', X(pb[0]) - 12, Y(pb[1]) + 2, PAL.c2, { bold: true, size: 15, align: 'center' });
+  // h, Kh, force
+  const s = Math.max(Math.abs(EG.l1), Math.abs(EG.l2), 1e-9), sc = 1 / s;
+  const Kh = st.par.Kh;
+  if (st.isPar) {
+    ctx.save(); ctx.strokeStyle = PAL.hot; ctx.globalAlpha = 0.45; ctx.lineWidth = 12; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(X(0), Y(0)); ctx.lineTo(X(st.hx), Y(st.hy)); ctx.stroke(); ctx.restore();
+  }
+  arrow(ctx, X(0), Y(0), X(st.hx), Y(st.hy), PAL.fg, 2.5, 12);
+  arrow(ctx, X(0), Y(0), X(sc * Kh[0]), Y(sc * Kh[1]), PAL.ck, 3, 12);
+  arrow(ctx, X(st.hx), Y(st.hy), X(st.hx - sc * Kh[0]), Y(st.hy - sc * Kh[1]), PAL.cf, 3, 12);
+  if (Math.hypot(Kh[0], Kh[1]) * sc > 0.25) {
+    const kx = X(sc * Kh[0]), ky = Y(sc * Kh[1]);
+    label(ctx, 'Kh', kx + 6, ky - 10, PAL.ck, { bold: true });
+    const fx = X(st.hx - 0.6 * sc * Kh[0]), fy = Y(st.hy - 0.6 * sc * Kh[1]);
+    label(ctx, '−Kh', fx + 8, fy + 12, PAL.cf, { bold: true });
+  }
+  ctx.fillStyle = PAL.panel; ctx.strokeStyle = PAL.fg; ctx.lineWidth = 2.5;
+  ctx.beginPath(); ctx.arc(X(st.hx), Y(st.hy), 7, 0, 7); ctx.fill(); ctx.stroke();
+  if (st.isPar) { ctx.strokeStyle = PAL.hot; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(X(st.hx), Y(st.hy), 12, 0, 7); ctx.stroke(); }
+  label(ctx, 'h', X(st.hx) + 12, Y(st.hy) - 14, PAL.fg, { bold: true, size: 16 });
+}
+
+// drag h
+let dragH = false;
+function moveH(ev) {
+  const r = cvC.getBoundingClientRect();
+  let x = (ev.clientX - r.left) / r.width * 2 * D1 - D1, y = D1 - (ev.clientY - r.top) / r.height * 2 * D1;
+  x = Math.max(-D1 * 0.97, Math.min(D1 * 0.97, x)); y = Math.max(-D1 * 0.97, Math.min(D1 * 0.97, y));
+  // gentle snap onto an eigenvector
+  const n = Math.hypot(x, y);
+  if (n > 0.1 && !EG.degenerate) for (const e of [EG.e1, EG.e2]) {
+    const cr = (x * e[1] - y * e[0]) / n;
+    if (Math.abs(cr) < SNAP) { const d = x * e[0] + y * e[1]; x = d * e[0]; y = d * e[1]; }
+  }
+  P1.h = [x, y]; drawP1();
+}
+cvC.addEventListener('pointerdown', (e) => { dragH = true; cvC.setPointerCapture(e.pointerId); moveH(e); });
+cvC.addEventListener('pointermove', (e) => { if (dragH) moveH(e); });
+cvC.addEventListener('pointerup', () => { dragH = false; });
+cvC.addEventListener('pointercancel', () => { dragH = false; });
+$('h-e1').addEventListener('click', () => { P1.h = [1.3 * EG.e1[0], 1.3 * EG.e1[1]]; drawP1(); });
+$('h-e2').addEventListener('click', () => { P1.h = [1.3 * EG.e2[0], 1.3 * EG.e2[1]]; drawP1(); });
+$('h-off').addEventListener('click', () => { P1.h = [1.2, 0.35]; drawP1(); });
+
+// ---- 3D surface
+const cv3 = $('cv-3d');
+const VIRIDIS = [[68, 1, 84], [59, 82, 139], [33, 145, 140], [94, 201, 98], [253, 231, 37]];
+const NEGMAP = [[68, 1, 84], [140, 30, 100], [205, 60, 75], [240, 120, 60], [252, 190, 110]];
+function cmap(map, t) {
+  t = Math.max(0, Math.min(1, t)) * (map.length - 1);
+  const i = Math.min(map.length - 2, Math.floor(t)), f = t - i, a = map[i], b = map[i + 1];
+  return [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f, a[2] + (b[2] - a[2]) * f];
+}
+function draw3D() {
+  const { ctx, w, h } = fit(cv3);
+  ctx.clearRect(0, 0, w, h);
+  const R = 2, nr = 20, nt = 72;
+  const smax = Math.max(Math.abs(EG.l1), Math.abs(EG.l2));
+  const Vn = smax > 1e-9 ? 0.5 * smax * R * R : 1, zH = 0.9;
+  const ca = Math.cos(P1.az), sa = Math.sin(P1.az), ce = Math.cos(P1.el), se = Math.sin(P1.el);
+  // vertical centring
+  let zmin = 0, zmax = 0;
+  const verts = [];
+  for (let i = 0; i <= nr; i++) {
+    const row = [];
+    for (let j = 0; j < nt; j++) {
+      const r = R * i / nr, th = 2 * Math.PI * j / nt, x = r * Math.cos(th), y = r * Math.sin(th);
+      const v = Core.V(P1, x, y), z = v / Vn * zH;
+      zmin = Math.min(zmin, z); zmax = Math.max(zmax, z);
+      row.push([x / R, y / R, z, v]);
+    }
+    verts.push(row);
+  }
+  const zc = 0.5 * (zmin + zmax);
+  const S = Math.min(w, h) * 0.37, cx = w / 2, cy = h / 2 + 6;
+  const proj = (x, y, z) => {
+    const xr = x * ca - y * sa, yr = x * sa + y * ca, zz = z - zc;
+    return [cx + S * xr, cy - S * (zz * ce + yr * se), yr * ce - zz * se];
+  };
+  // floor axes (drawn first)
+  const axisZ = 0;
+  ctx.lineWidth = 1.2; ctx.strokeStyle = PAL.muted;
+  for (const [ax, ay, nm] of [[1, 0, 'h'], [0, 1, 'k']]) {
+    const p0 = proj(-1.25 * ax, -1.25 * ay, axisZ), p1 = proj(1.25 * ax, 1.25 * ay, axisZ);
+    ctx.beginPath(); ctx.moveTo(p0[0], p0[1]); ctx.lineTo(p1[0], p1[1]); ctx.stroke();
+  }
+  // faces
+  const L = (() => { const v = [-0.35, -0.55, 1]; const n = Math.hypot(...v); return v.map((q) => q / n); })();
+  const faces = [];
+  for (let i = 0; i < nr; i++) for (let j = 0; j < nt; j++) {
+    const jn = (j + 1) % nt;
+    const q = [verts[i][j], verts[i + 1][j], verts[i + 1][jn], verts[i][jn]];
+    const d1 = [q[2][0] - q[0][0], q[2][1] - q[0][1], q[2][2] - q[0][2]];
+    const d2 = [q[3][0] - q[1][0], q[3][1] - q[1][1], q[3][2] - q[1][2]];
+    const nx = d1[1] * d2[2] - d1[2] * d2[1], ny = d1[2] * d2[0] - d1[0] * d2[2], nz = d1[0] * d2[1] - d1[1] * d2[0];
+    const nn = Math.hypot(nx, ny, nz) || 1;
+    const shade = 0.55 + 0.45 * Math.abs((nx * L[0] + ny * L[1] + nz * L[2]) / nn);
+    const vm = (q[0][3] + q[1][3] + q[2][3] + q[3][3]) / 4 / Vn;
+    const col = vm >= 0 ? cmap(VIRIDIS, vm) : cmap(NEGMAP, -vm);
+    const P = q.map((p) => proj(p[0], p[1], p[2]));
+    faces.push({ P, depth: (P[0][2] + P[1][2] + P[2][2] + P[3][2]) / 4, col: `rgb(${col[0] * shade | 0},${col[1] * shade | 0},${col[2] * shade | 0})` });
+  }
+  faces.sort((a, b) => b.depth - a.depth);
+  ctx.lineWidth = 0.7; ctx.lineJoin = 'round';
+  for (const f of faces) {
+    ctx.fillStyle = f.col; ctx.strokeStyle = f.col;
+    ctx.beginPath(); ctx.moveTo(f.P[0][0], f.P[0][1]);
+    for (let k = 1; k < 4; k++) ctx.lineTo(f.P[k][0], f.P[k][1]);
+    ctx.closePath(); ctx.fill(); ctx.stroke();
+  }
+  // eigen cross-sections
+  [[EG.e1, EG.l1, PAL.c1], [EG.e2, EG.l2, PAL.c2]].forEach(([e, l, col]) => {
+    ctx.strokeStyle = col; ctx.lineWidth = 3; ctx.setLineDash(EG.degenerate ? [6, 5] : []);
+    ctx.beginPath();
+    for (let k = 0; k <= 60; k++) {
+      const s = -R + 2 * R * k / 60, v = 0.5 * l * s * s, p = proj(s * e[0] / R, s * e[1] / R, v / Vn * zH);
+      if (k === 0) ctx.moveTo(p[0], p[1]); else ctx.lineTo(p[0], p[1]);
+    }
+    ctx.stroke(); ctx.setLineDash([]);
+    const pe = proj(1.12 * e[0], 1.12 * e[1], 0.5 * l * R * R / Vn * zH);
+    label(ctx, `λ = ${fmt(l)}`, pe[0], pe[1], col, { bold: true, align: 'center' });
+  });
+  // axis labels
+  for (const [ax, ay, nm] of [[1, 0, 'h'], [0, 1, 'k']]) {
+    const p = proj(1.33 * ax, 1.33 * ay, axisZ);
+    label(ctx, nm, p[0], p[1], PAL.fg, { size: 15, align: 'center' });
+  }
+  // point h on surface
+  const [hx, hy] = P1.h, vh = Core.V(P1, hx, hy);
+  const ph = proj(hx / R, hy / R, vh / Vn * zH), p0 = proj(hx / R, hy / R, axisZ);
+  ctx.setLineDash([3, 3]); ctx.strokeStyle = PAL.fg; ctx.lineWidth = 1.2;
+  ctx.beginPath(); ctx.moveTo(p0[0], p0[1]); ctx.lineTo(ph[0], ph[1]); ctx.stroke(); ctx.setLineDash([]);
+  ctx.fillStyle = PAL.panel; ctx.strokeStyle = PAL.fg; ctx.lineWidth = 2.5;
+  ctx.beginPath(); ctx.arc(ph[0], ph[1], 6, 0, 7); ctx.fill(); ctx.stroke();
+  if (hState().isPar) { ctx.strokeStyle = PAL.hot; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(ph[0], ph[1], 11, 0, 7); ctx.stroke(); }
+  label(ctx, 'h', ph[0] + 10, ph[1] - 12, PAL.fg, { bold: true, size: 15 });
+  label(ctx, 'drag to rotate', w - 8, h - 12, PAL.muted, { size: 12, align: 'right' });
+}
+let rot = null;
+cv3.addEventListener('pointerdown', (e) => { rot = { x: e.clientX, y: e.clientY, az: P1.az, el: P1.el }; cv3.setPointerCapture(e.pointerId); });
+cv3.addEventListener('pointermove', (e) => {
+  if (!rot) return;
+  P1.az = rot.az - (e.clientX - rot.x) * 0.01;
+  P1.el = Math.max(-0.3, Math.min(1.55, rot.el + (e.clientY - rot.y) * 0.01));
+  draw3D();
+});
+cv3.addEventListener('pointerup', () => { rot = null; });
+cv3.addEventListener('pointercancel', () => { rot = null; });
+
+// ---- readouts
+function p1Readouts() {
+  tex($('r-K'), `K=\\begin{pmatrix}${tf(P1.K11, 1)} & ${tf(P1.K12, 1)}\\\\ ${tf(P1.K12, 1)} & ${tf(P1.K22, 1)}\\end{pmatrix},\\quad \\det K=${tf(P1.K11 * P1.K22 - P1.K12 * P1.K12)},\\quad \\operatorname{tr}K=${tf(P1.K11 + P1.K22, 1)}`);
+  const rl = roles();
+  const e1 = $('r-e1'), e2 = $('r-e2');
+  e1.innerHTML = `<span class="sw" style="background:${PAL.c1}"></span><span></span> <span style="color:var(--muted)">(${rl[0]})</span>`;
+  e2.innerHTML = `<span class="sw" style="background:${PAL.c2}"></span><span></span> <span style="color:var(--muted)">(${rl[1]})</span>`;
+  tex(e1.children[1], `\\lambda_1=${tf(EG.l1)},\\quad \\mathbf e_1=(${tf(EG.e1[0], 3)},\\ ${tf(EG.e1[1], 3)})`);
+  tex(e2.children[1], `\\lambda_2=${tf(EG.l2)},\\quad \\mathbf e_2=(${tf(EG.e2[0], 3)},\\ ${tf(EG.e2[1], 3)})`);
+  const nt = NOTES[CLS] || ['', ''];
+  const nEl = $('r-note'); nEl.className = 'note' + (nt[0] ? ' ' + nt[0] : ''); nEl.textContent = nt[1];
+  const st = hState(), m = Core.modal(EG, st.hx, st.hy);
+  tex($('r-h'), `\\mathbf h=(h,k)=(${tf(st.hx)},\\ ${tf(st.hy)})`);
+  tex($('r-ab'), `a=\\mathbf e_1\\!\\cdot\\mathbf h=${tf(m.a, 3)},\\qquad b=\\mathbf e_2\\!\\cdot\\mathbf h=${tf(m.b, 3)}`);
+  const Vd = Core.V(P1, st.hx, st.hy), Vm = Core.Vmodal(EG, m.a, m.b);
+  const sgn = (x) => (x < 0 ? '(' + tf(x, 3) + ')' : tf(x, 3));
+  const rV = $('r-V'); rV.innerHTML = '<div></div><div style="margin-top:4px"></div>';
+  tex(rV.children[0], `V=\\tfrac12\\left(\\lambda_1a^2+\\lambda_2b^2\\right)=\\tfrac12\\left(${tf(EG.l1)}\\cdot${sgn(m.a)}^2+${sgn(EG.l2)}\\cdot${sgn(m.b)}^2\\right)=${tf(Vm, 3)}`);
+  tex(rV.children[1], `\\text{check: }\\tfrac12\\mathbf h^{T}K\\mathbf h=${tf(Vd, 3)}\\ \\checkmark`);
+  const Kh = st.par.Kh, ang = Math.abs(st.par.angle) * 180 / Math.PI;
+  tex($('r-Kh'), `K\\mathbf h=(${tf(Kh[0])},\\ ${tf(Kh[1])}),\\qquad \\angle(\\mathbf h,K\\mathbf h)=${tf(ang, 1)}^\\circ`);
+  const pEl = $('r-par');
+  if (st.nh < 0.03) { pEl.className = 'status'; pEl.textContent = 'h is at the origin, the equilibrium: no force.'; }
+  else if (st.isPar) {
+    pEl.className = 'status on';
+    const lam = st.par.zero ? 0 : st.par.ray;
+    let txt = `✓ Kh ∥ h: h lies along an eigenvector, with Kh = λh and λ = ${fmt(lam)}. `;
+    if (Math.abs(lam) < 1e-6) txt += 'There is no force at all here (a zero mode): released at rest, the point just stays put.';
+    else if (lam > 0) txt += `The force −λh points straight back at the origin, so released from rest the point oscillates along this line at ω = √(λ/m): a normal mode.`;
+    else txt += 'The force −λh points straight away from the origin: an unstable mode that runs off along this line.';
+    pEl.textContent = txt;
+  } else {
+    pEl.className = 'status';
+    pEl.textContent = `Kh is not parallel to h (they are ${fmt(ang, 1)}° apart). The force −Kh has a sideways component, so motion started here does not stay on a line: the coordinates h and k are coupled. Move h onto a coloured axis.`;
+  }
+}
+
+// =====================================================================
+// PART 2a: elliptical well
+// =====================================================================
+const Wp = { k1: 1, k2: 4, m: 1, x0: 1, y0: 0, vx0: 0, vy0: 1.2 };
+const Wst = { t: 0, play: true, speed: 1 };
+let wCache = null;
+const sW = {};
+for (const [k, d] of [['k1', 2], ['k2', 2], ['x0', 2], ['y0', 2], ['vx0', 2], ['vy0', 2]]) sW[k] = bindSlider(k, Wp, k, d, wChanged);
+bindSlider('wspeed', Wst, 'speed', 1);
+function wChanged() { Wst.t = 0; wCache = null; }
+const W_PRESETS = {
+  '1:1': { k1: 1, k2: 1, x0: 1, y0: 0, vx0: 0, vy0: 0.7 },
+  '2:1': { k1: 1, k2: 4, x0: 1, y0: 0, vx0: 0, vy0: 1.2 },
+  '3:2': { k1: 4, k2: 9, x0: 1, y0: 0, vx0: 0, vy0: 2.4 },
+  'irr': { k1: 1, k2: 2, x0: 1, y0: 0.4, vx0: 0, vy0: 0.8 },
+  'mode': { k1: 1, k2: 4, x0: 1.2, y0: 0, vx0: 0, vy0: 0 },
+};
+document.querySelectorAll('[data-wp]').forEach((b) => b.addEventListener('click', () => {
+  const p = W_PRESETS[b.dataset.wp]; for (const k in p) sW[k].set(p[k]); wChanged();
+}));
+$('w-play').addEventListener('click', () => { Wst.play = !Wst.play; $('w-play').textContent = Wst.play ? 'Pause' : 'Play'; });
+$('w-reset').addEventListener('click', () => { Wst.t = 0; });
+$('w-step').addEventListener('click', () => { Wst.play = false; $('w-play').textContent = 'Play'; Wst.t += 0.05; });
+
+function wGeom() {
+  if (wCache) return wCache;
+  const f = Core.wellFreqs(Wp), A = Core.wellAmps(Wp);
+  const D = Math.max(1.6, 1.18 * Math.max(A.X, A.Y));
+  const wmin = Math.min(f.w1, f.w2), Tfull = Math.min(600, 40 * 2 * Math.PI / wmin), N = 5000;
+  const pts = new Float64Array(2 * (N + 1));
+  for (let i = 0; i <= N; i++) { const s = Core.wellState(Wp, Tfull * i / N); pts[2 * i] = s.x; pts[2 * i + 1] = s.y; }
+  const r = f.w2 / f.w1;
+  let rat = null;
+  for (let q = 1; q <= 12 && !rat; q++) { const p = Math.round(r * q); if (p > 0 && Math.abs(r - p / q) < 1e-9) rat = [p, q]; }
+  wCache = { f, A, D, pts, wmin, rat, E: Core.wellState(Wp, 0).E };
+  return wCache;
+}
+const cvW = $('cv-well');
+function drawWell() {
+  const g = wGeom(), { ctx, w, h } = fit(cvW), D = g.D;
+  const X = (x) => w / 2 + x / D * w / 2, Y = (y) => h / 2 - y / D * h / 2;
+  ctx.clearRect(0, 0, w, h);
+  // contours of V
+  const kmin = Math.min(Wp.k1, Wp.k2);
+  ctx.strokeStyle = PAL.posl; ctx.lineWidth = 1; ctx.globalAlpha = 0.6;
+  for (let j = 1; j <= 10; j++) {
+    const c = 0.5 * kmin * Math.pow(D * j / 6, 2), ax = Math.sqrt(2 * c / Wp.k1), ay = Math.sqrt(2 * c / Wp.k2);
+    ctx.beginPath(); ctx.ellipse(X(0), Y(0), ax / D * w / 2, ay / D * h / 2, 0, 0, 2 * Math.PI); ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+  // axes
+  ctx.strokeStyle = PAL.line; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(0, Y(0)); ctx.lineTo(w, Y(0)); ctx.moveTo(X(0), 0); ctx.lineTo(X(0), h); ctx.stroke();
+  label(ctx, 'x  (mode 1)', w - 8, Y(0) - 12, PAL.c1, { align: 'right', bold: true });
+  label(ctx, 'y  (mode 2)', X(0) + 8, 14, PAL.c2, { bold: true });
+  // V = E ellipse and amplitude box
+  ctx.setLineDash([6, 5]); ctx.lineWidth = 1.4; ctx.strokeStyle = PAL.muted;
+  const ex = Math.sqrt(2 * g.E / Wp.k1), ey = Math.sqrt(2 * g.E / Wp.k2);
+  ctx.beginPath(); ctx.ellipse(X(0), Y(0), ex / D * w / 2, ey / D * h / 2, 0, 0, 2 * Math.PI); ctx.stroke();
+  ctx.strokeStyle = PAL.fg; ctx.globalAlpha = 0.55;
+  ctx.strokeRect(X(-g.A.X), Y(g.A.Y), (X(g.A.X) - X(-g.A.X)), (Y(-g.A.Y) - Y(g.A.Y)));
+  ctx.globalAlpha = 1; ctx.setLineDash([]);
+  if (ey / D < 0.97) label(ctx, 'V = E', X(0) + 6, Y(ey) - 9, PAL.muted, { size: 12 });
+  // full Lissajous (faint)
+  ctx.strokeStyle = PAL.fg; ctx.globalAlpha = 0.24; ctx.lineWidth = 1.2; ctx.beginPath();
+  for (let i = 0; i < g.pts.length / 2; i++) { const x = X(g.pts[2 * i]), y = Y(g.pts[2 * i + 1]); if (i) ctx.lineTo(x, y); else ctx.moveTo(x, y); }
+  ctx.stroke(); ctx.globalAlpha = 1;
+  // recent trail
+  const t = Wst.t, Ttr = 1.1 * 2 * Math.PI / g.wmin, ts = Math.max(0, t - Ttr), n = 140;
+  let prev = Core.wellState(Wp, ts);
+  ctx.lineWidth = 2.5; ctx.strokeStyle = PAL.fg; ctx.lineCap = 'round';
+  for (let i = 1; i <= n; i++) {
+    const s = Core.wellState(Wp, ts + (t - ts) * i / n);
+    ctx.globalAlpha = 0.1 + 0.9 * i / n;
+    ctx.beginPath(); ctx.moveTo(X(prev.x), Y(prev.y)); ctx.lineTo(X(s.x), Y(s.y)); ctx.stroke(); prev = s;
+  }
+  ctx.globalAlpha = 1;
+  const s = Core.wellState(Wp, t);
+  // shadows onto the mode axes
+  ctx.setLineDash([3, 4]); ctx.lineWidth = 1.2;
+  ctx.strokeStyle = PAL.c1; ctx.beginPath(); ctx.moveTo(X(s.x), Y(s.y)); ctx.lineTo(X(s.x), Y(0)); ctx.stroke();
+  ctx.strokeStyle = PAL.c2; ctx.beginPath(); ctx.moveTo(X(s.x), Y(s.y)); ctx.lineTo(X(0), Y(s.y)); ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.fillStyle = PAL.c1; ctx.beginPath(); ctx.arc(X(s.x), Y(0), 6, 0, 7); ctx.fill();
+  ctx.fillStyle = PAL.c2; ctx.beginPath(); ctx.arc(X(0), Y(s.y), 6, 0, 7); ctx.fill();
+  // force arrow -K h
+  const fs = 0.35 / Math.max(Wp.k1, Wp.k2) * Math.max(1, D / 1.6);
+  arrow(ctx, X(s.x), Y(s.y), X(s.x - fs * Wp.k1 * s.x), Y(s.y - fs * Wp.k2 * s.y), PAL.cf, 2.5, 10);
+  // mass
+  ctx.fillStyle = PAL.fg; ctx.beginPath(); ctx.arc(X(s.x), Y(s.y), 9, 0, 7); ctx.fill();
+  ctx.strokeStyle = PAL.panel; ctx.lineWidth = 2; ctx.stroke();
+  label(ctx, 'drag to set start', w - 8, h - 12, PAL.muted, { size: 12, align: 'right' });
+  return s;
+}
+let dragW = false;
+function moveW(ev) {
+  const g = wGeom(), r = cvW.getBoundingClientRect();
+  const x = ((ev.clientX - r.left) / r.width * 2 - 1) * g.D, y = (1 - (ev.clientY - r.top) / r.height * 2) * g.D;
+  const D = g.D;
+  sW.x0.set(Math.round(Math.max(-1.5, Math.min(1.5, x)) * 20) / 20);
+  sW.y0.set(Math.round(Math.max(-1.5, Math.min(1.5, y)) * 20) / 20);
+  wChanged(); wCache = null; const g2 = wGeom(); g2.D = D; // keep the view steady while dragging
+}
+cvW.addEventListener('pointerdown', (e) => { dragW = true; cvW.setPointerCapture(e.pointerId); moveW(e); });
+cvW.addEventListener('pointermove', (e) => { if (dragW) moveW(e); });
+cvW.addEventListener('pointerup', () => { dragW = false; wCache = null; });
+cvW.addEventListener('pointercancel', () => { dragW = false; wCache = null; });
+
+function drawWellAll() {
+  const s = drawWell(), g = wGeom(), t = Wst.t;
+  const win = Math.max(8, Math.min(40, 2.5 * 2 * Math.PI / g.wmin));
+  const ym = 1.15 * Math.max(g.A.X, g.A.Y, 0.2);
+  timePlot($('cv-wx'), t, win, [{ f: (tt) => Core.wellState(Wp, tt).x, color: PAL.c1, label: `x(t): mode 1, ω₁ = ${fmt(g.f.w1)}` }], { ymin: -ym, ymax: ym, ylabel: 'x' });
+  timePlot($('cv-wy'), t, win, [{ f: (tt) => Core.wellState(Wp, tt).y, color: PAL.c2, label: `y(t): mode 2, ω₂ = ${fmt(g.f.w2)}` }], { ymin: -ym, ymax: ym, ylabel: 'y' });
+  $('w-read').innerHTML =
+    `<span>t = <b>${fmt(t, 1)}</b></span>` +
+    `<span>ω₂/ω₁ = <b>${fmt(g.f.w2 / g.f.w1, 4)}</b></span>` +
+    `<span style="color:${PAL.c1}">E<sub>x</sub> = <b>${fmt(s.Ex, 3)}</b> (const)</span>` +
+    `<span style="color:${PAL.c2}">E<sub>y</sub> = <b>${fmt(s.Ey, 3)}</b> (const)</span>` +
+    `<span>E = <b>${fmt(s.E, 3)}</b></span>` +
+    `<span>X = <b>${fmt(g.A.X)}</b>, Y = <b>${fmt(g.A.Y)}</b></span>`;
+  const note = g.rat
+    ? `ω₂ : ω₁ = ${g.rat[0]} : ${g.rat[1]} is rational, so the Lissajous curve closes after ${g.rat[1]} period${g.rat[1] > 1 ? 's' : ''} of mode 1 (T = ${fmt(2 * Math.PI * g.rat[1] / g.f.w1, 2)}).`
+    : `ω₂/ω₁ = ${fmt(g.f.w2 / g.f.w1, 4)} is not a simple ratio, so the curve does not close quickly. For an irrational ratio it never closes, and eventually fills the dashed rectangle.`;
+  if ($('w-note').textContent !== note) $('w-note').textContent = note;
+}
+
+// =====================================================================
+// PART 2b: two coupled masses
+// =====================================================================
+const Cp = { kap: 1, kc: 1, m: 1, x10: 1, x20: 0, v10: 0, v20: 0 };
+const Cst = { t: 0, play: true, speed: 1.5, amp: 1, mode: 'pull' };
+let cCache = null;
+const sC = {};
+sC.kap = bindSlider('kap', Cp, 'kap', 2, cChanged);
+sC.kc = bindSlider('kc', Cp, 'kc', 2, cChanged);
+sC.m = bindSlider('mass', Cp, 'm', 2, cChanged);
+bindSlider('amp', Cst, 'amp', 2, () => { setIC(Cst.mode); });
+bindSlider('cspeed', Cst, 'speed', 1);
+function cChanged() { Ct0(); cCache = null; }
+function Ct0() { Cst.t = 0; }
+function setIC(mode) {
+  Cst.mode = mode; const A = Cst.amp;
+  if (mode === 'in') Object.assign(Cp, { x10: A, x20: A, v10: 0, v20: 0 });
+  else if (mode === 'anti') Object.assign(Cp, { x10: A, x20: -A, v10: 0, v20: 0 });
+  else if (mode === 'pull') Object.assign(Cp, { x10: A, x20: 0, v10: 0, v20: 0 });
+  else if (mode === 'custom') { const s = Math.max(Math.abs(Cp.x10), Math.abs(Cp.x20)) || 1; Cp.x10 *= A / s; Cp.x20 *= A / s; }
+  cChanged();
+}
+$('c-in').addEventListener('click', () => setIC('in'));
+$('c-anti').addEventListener('click', () => setIC('anti'));
+$('c-pull').addEventListener('click', () => setIC('pull'));
+$('c-eq').addEventListener('click', () => { sC.kc.set(Cp.kap); setIC('pull'); });
+$('c-weak').addEventListener('click', () => { sC.kc.set(Math.round(0.1 * Cp.kap * 100) / 100); setIC('pull'); Cst.speed = Math.max(Cst.speed, 3); $('cspeed').value = Cst.speed; $('cspeed-v').textContent = fmt(Cst.speed, 1); });
+$('c-play').addEventListener('click', () => { Cst.play = !Cst.play; $('c-play').textContent = Cst.play ? 'Pause' : 'Play'; });
+$('c-reset').addEventListener('click', () => { Cst.t = 0; });
+$('c-step').addEventListener('click', () => { Cst.play = false; $('c-play').textContent = 'Play'; Cst.t += 0.05; });
+
+function cGeom() {
+  if (cCache) return cCache;
+  const f = Core.coupledFreqs(Cp), A = Core.coupledAmps(Cp), E0 = Core.coupledState(Cp, 0).E;
+  const xmax = R2 * (A.A + A.B);
+  const D = Math.max(1.3, 1.22 * Math.max(xmax, A.A, A.B));
+  const dw = f.wb - f.wa;
+  const win = Math.max(20, Math.min(90, dw > 1e-6 ? 1.15 * 2 * Math.PI / dw : 90));
+  const Tfull = Math.min(500, 40 * 2 * Math.PI / f.wa), N = 5000, pts = new Float64Array(2 * (N + 1));
+  for (let i = 0; i <= N; i++) { const s = Core.coupledState(Cp, Tfull * i / N); pts[2 * i] = s.x1; pts[2 * i + 1] = s.x2; }
+  cCache = { f, A, E0, xmax, D, win, pts, dw };
+  return cCache;
+}
+
+const cvS = $('cv-springs');
+function drawSprings(s, g) {
+  const { ctx, w, h } = fit(cvS);
+  ctx.clearRect(0, 0, w, h);
+  const wl = 26, wr = w - 26, L = wr - wl, yc = 62, sc = 0.1 * L;
+  const bw = Math.max(26, Math.min(46, L * 0.07)), bh = 42;
+  // walls
+  ctx.fillStyle = PAL.line;
+  ctx.fillRect(wl - 12, yc - 40, 12, 80); ctx.fillRect(wr, yc - 40, 12, 80);
+  ctx.strokeStyle = PAL.muted; ctx.lineWidth = 1;
+  for (let k = -40; k < 40; k += 9) {
+    ctx.beginPath(); ctx.moveTo(wl - 12, yc + k + 9); ctx.lineTo(wl, yc + k); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(wr, yc + k + 9); ctx.lineTo(wr + 12, yc + k); ctx.stroke();
+  }
+  const e1 = wl + L / 3, e2 = wl + 2 * L / 3, p1 = e1 + sc * s.x1, p2 = e2 + sc * s.x2;
+  spring(ctx, wl, p1 - bw / 2, yc, PAL.muted, 9, 9);
+  spring(ctx, p2 + bw / 2, wr, yc, PAL.muted, 9, 9);
+  if (Cp.kc > 1e-6) spring(ctx, p1 + bw / 2, p2 - bw / 2, yc, PAL.ck, 9, 9, 1 + Math.min(2.5, 1.5 * Math.sqrt(Cp.kc / Cp.kap)));
+  else { ctx.setLineDash([3, 5]); ctx.strokeStyle = PAL.muted; ctx.beginPath(); ctx.moveTo(p1 + bw / 2, yc); ctx.lineTo(p2 - bw / 2, yc); ctx.stroke(); ctx.setLineDash([]); }
+  label(ctx, 'κ', (wl + p1 - bw / 2) / 2, yc - 22, PAL.muted, { align: 'center', size: 15 });
+  label(ctx, 'κ', (p2 + bw / 2 + wr) / 2, yc - 22, PAL.muted, { align: 'center', size: 15 });
+  label(ctx, 'κ', (p1 + p2) / 2 - 3, yc - 22, PAL.ck, { align: 'center', size: 15 });
+  label(ctx, 'c', (p1 + p2) / 2 + 5, yc - 17, PAL.ck, { align: 'center', size: 11 });
+  // equilibrium marks
+  ctx.setLineDash([3, 3]); ctx.strokeStyle = PAL.muted;
+  for (const e of [e1, e2]) { ctx.beginPath(); ctx.moveTo(e, yc - bh / 2 - 6); ctx.lineTo(e, yc + bh / 2 + 22); ctx.stroke(); }
+  ctx.setLineDash([]);
+  // blocks
+  for (const [p, col, nm] of [[p1, PAL.x1, '1'], [p2, PAL.x2, '2']]) {
+    ctx.fillStyle = col; ctx.beginPath();
+    if (ctx.roundRect) ctx.roundRect(p - bw / 2, yc - bh / 2, bw, bh, 6); else ctx.rect(p - bw / 2, yc - bh / 2, bw, bh);
+    ctx.fill();
+    ctx.fillStyle = PAL.panel; ctx.font = '600 15px system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('m', p, yc);
+  }
+  // displacement arrows
+  const ya = yc + bh / 2 + 14;
+  for (const [e, x, col, nm] of [[e1, s.x1, PAL.x1, 'x₁'], [e2, s.x2, PAL.x2, 'x₂']]) {
+    if (Math.abs(x) * sc > 4) arrow(ctx, e, ya, e + sc * x, ya, col, 2.5, 8);
+    label(ctx, `${nm} = ${fmt(x)}`, e, ya + 16, col, { align: 'center', bold: true, size: 13 });
+  }
+  // energy bars
+  const yb = h - 18, bwid = L * 0.26;
+  for (const [e, E, col, nm] of [[e1, s.E1, PAL.x1, 'E₁'], [e2, s.E2, PAL.x2, 'E₂']]) {
+    const fr = g.E0 > 0 ? Math.max(0, Math.min(1, E / g.E0)) : 0;
+    ctx.fillStyle = PAL.grid; ctx.fillRect(e - bwid / 2, yb - 6, bwid, 12);
+    ctx.fillStyle = col; ctx.fillRect(e - bwid / 2, yb - 6, bwid * fr, 12);
+    label(ctx, `${nm} ${Math.round(fr * 100)}%`, e - bwid / 2 - 6, yb, col, { align: 'right', size: 13, bold: true });
+  }
+}
+
+const cvCf = $('cv-config');
+function drawConfig(s, g) {
+  const { ctx, w, h } = fit(cvCf), D = g.D;
+  const X = (x) => w / 2 + x / D * w / 2, Y = (y) => h / 2 - y / D * h / 2;
+  ctx.clearRect(0, 0, w, h);
+  // contours of V in modal coords: V = 1/2(m wa^2 a^2 + m wb^2 b^2)
+  const la = Cp.m * g.f.wa * g.f.wa, lb = Cp.m * g.f.wb * g.f.wb;
+  ctx.strokeStyle = PAL.posl; ctx.lineWidth = 1; ctx.globalAlpha = 0.6;
+  for (let j = 1; j <= 10; j++) {
+    const c = 0.5 * la * Math.pow(D * j / 6, 2), sa = Math.sqrt(2 * c / la), sb = Math.sqrt(2 * c / lb);
+    ctx.beginPath(); ctx.ellipse(X(0), Y(0), sa / D * w / 2, sb / D * h / 2, -Math.PI / 4, 0, 2 * Math.PI); ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+  ctx.strokeStyle = PAL.line; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(0, Y(0)); ctx.lineTo(w, Y(0)); ctx.moveTo(X(0), 0); ctx.lineTo(X(0), h); ctx.stroke();
+  label(ctx, 'x₁', w - 8, Y(0) + 14, PAL.x1, { align: 'right', bold: true, size: 15 });
+  label(ctx, 'x₂', X(0) - 8, 14, PAL.x2, { align: 'right', bold: true, size: 15 });
+  // eigen axes a (1,1)/√2, b (1,-1)/√2
+  const Lx = D * 0.95;
+  ctx.lineWidth = 2.2;
+  ctx.strokeStyle = PAL.ca; ctx.beginPath(); ctx.moveTo(X(-Lx), Y(-Lx)); ctx.lineTo(X(Lx), Y(Lx)); ctx.stroke();
+  ctx.strokeStyle = PAL.cb; ctx.beginPath(); ctx.moveTo(X(-Lx), Y(Lx)); ctx.lineTo(X(Lx), Y(-Lx)); ctx.stroke();
+  labelIn(ctx, `a: in-phase (ω = ${fmt(g.f.wa)})`, X(0.62 * Lx), Y(0.62 * Lx) - 4, PAL.ca, w, h, { bold: true, size: 13 });
+  labelIn(ctx, `b: anti-phase (ω = ${fmt(g.f.wb)})`, X(0.55 * Lx), Y(-0.55 * Lx) + 14, PAL.cb, w, h, { bold: true, size: 13 });
+  // full path faint
+  ctx.strokeStyle = PAL.fg; ctx.globalAlpha = 0.22; ctx.lineWidth = 1.1; ctx.beginPath();
+  for (let i = 0; i < g.pts.length / 2; i++) { const x = X(g.pts[2 * i]), y = Y(g.pts[2 * i + 1]); if (i) ctx.lineTo(x, y); else ctx.moveTo(x, y); }
+  ctx.stroke(); ctx.globalAlpha = 1;
+  // trail
+  const t = Cst.t, Ttr = 1.0 * 2 * Math.PI / g.f.wa, ts = Math.max(0, t - Ttr), n = 140;
+  let prev = Core.coupledState(Cp, ts);
+  ctx.lineWidth = 2.5; ctx.strokeStyle = PAL.fg; ctx.lineCap = 'round';
+  for (let i = 1; i <= n; i++) {
+    const q = Core.coupledState(Cp, ts + (t - ts) * i / n);
+    ctx.globalAlpha = 0.1 + 0.9 * i / n;
+    ctx.beginPath(); ctx.moveTo(X(prev.x1), Y(prev.x2)); ctx.lineTo(X(q.x1), Y(q.x2)); ctx.stroke(); prev = q;
+  }
+  ctx.globalAlpha = 1;
+  // projections onto modal axes
+  const pa = [R2 * s.a, R2 * s.a], pb = [R2 * s.b, -R2 * s.b];
+  ctx.setLineDash([3, 4]); ctx.lineWidth = 1.2;
+  ctx.strokeStyle = PAL.ca; ctx.beginPath(); ctx.moveTo(X(s.x1), Y(s.x2)); ctx.lineTo(X(pa[0]), Y(pa[1])); ctx.stroke();
+  ctx.strokeStyle = PAL.cb; ctx.beginPath(); ctx.moveTo(X(s.x1), Y(s.x2)); ctx.lineTo(X(pb[0]), Y(pb[1])); ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.fillStyle = PAL.ca; ctx.beginPath(); ctx.arc(X(pa[0]), Y(pa[1]), 6, 0, 7); ctx.fill();
+  ctx.fillStyle = PAL.cb; ctx.beginPath(); ctx.arc(X(pb[0]), Y(pb[1]), 6, 0, 7); ctx.fill();
+  ctx.fillStyle = PAL.fg; ctx.beginPath(); ctx.arc(X(s.x1), Y(s.x2), 8, 0, 7); ctx.fill();
+  ctx.strokeStyle = PAL.panel; ctx.lineWidth = 2; ctx.stroke();
+  label(ctx, 'click to set start (at rest)', w - 8, h - 12, PAL.muted, { size: 12, align: 'right' });
+}
+let dragC = false;
+function moveC(ev) {
+  const g = cGeom(), r = cvCf.getBoundingClientRect(), D = g.D;
+  const x = ((ev.clientX - r.left) / r.width * 2 - 1) * D, y = (1 - (ev.clientY - r.top) / r.height * 2) * D;
+  Object.assign(Cp, { x10: Math.max(-1.3, Math.min(1.3, x)), x20: Math.max(-1.3, Math.min(1.3, y)), v10: 0, v20: 0 });
+  Cst.mode = 'custom'; cChanged(); cGeom().D = D;
+}
+cvCf.addEventListener('pointerdown', (e) => { dragC = true; cvCf.setPointerCapture(e.pointerId); moveC(e); });
+cvCf.addEventListener('pointermove', (e) => { if (dragC) moveC(e); });
+cvCf.addEventListener('pointerup', () => { dragC = false; cCache = null; });
+cvCf.addEventListener('pointercancel', () => { dragC = false; cCache = null; });
+
+function drawCoupledAll() {
+  const g = cGeom(), t = Cst.t, s = Core.coupledState(Cp, t);
+  drawSprings(s, g);
+  drawConfig(s, g);
+  const ym = 1.12 * Math.max(g.xmax, g.A.A, g.A.B, 0.1);
+  const st = (tt) => Core.coupledState(Cp, tt);
+  timePlot($('cv-x'), t, g.win, [
+    { f: (tt) => st(tt).x1, color: PAL.x1, label: 'x₁(t)' },
+    { f: (tt) => st(tt).x2, color: PAL.x2, label: 'x₂(t)' }], { ymin: -ym, ymax: ym, ylabel: 'x' });
+  timePlot($('cv-ab'), t, g.win, [
+    { f: (tt) => st(tt).a, color: PAL.ca, label: 'a(t), in-phase' },
+    { f: (tt) => st(tt).b, color: PAL.cb, label: 'b(t), anti-phase' }], { ymin: -ym, ymax: ym, ylabel: 'a, b' });
+  const Em = 1.12 * Math.max(g.E0, 1e-6);
+  timePlot($('cv-E'), t, g.win, [
+    { f: (tt) => st(tt).E1, color: PAL.x1, label: 'E₁' },
+    { f: (tt) => st(tt).E2, color: PAL.x2, label: 'E₂' },
+    { f: (tt) => st(tt).Ea, color: PAL.ca, label: 'mode a', dash: [6, 4] },
+    { f: (tt) => st(tt).Eb, color: PAL.cb, label: 'mode b', dash: [2, 4], width: 2.5 }], { ymin: 0, ymax: Em, ylabel: 'E' });
+  const swap = g.dw > 1e-6 ? Math.PI / g.dw : Infinity;
+  $('c-read').innerHTML =
+    `<span>t = <b>${fmt(t, 1)}</b></span>` +
+    `<span style="color:${PAL.ca}">ω<sub>a</sub> = √(κ/m) = <b>${fmt(g.f.wa, 3)}</b></span>` +
+    `<span style="color:${PAL.cb}">ω<sub>b</sub> = √((κ+2κ<sub>c</sub>)/m) = <b>${fmt(g.f.wb, 3)}</b></span>` +
+    `<span>λ(K) = <b>${fmt(Cp.kap, 2)}</b>, <b>${fmt(Cp.kap + 2 * Cp.kc, 2)}</b></span>` +
+    `<span>energy swap π/(ω<sub>b</sub>−ω<sub>a</sub>) = <b>${isFinite(swap) ? fmt(swap, 1) : '∞'}</b></span>` +
+    `<span style="color:${PAL.x1}">E₁ = <b>${fmt(s.E1, 3)}</b></span>` +
+    `<span style="color:${PAL.x2}">E₂ = <b>${fmt(s.E2, 3)}</b></span>` +
+    `<span style="color:${PAL.ca}">E<sub>a</sub> = <b>${fmt(s.Ea, 3)}</b> (const)</span>` +
+    `<span style="color:${PAL.cb}">E<sub>b</sub> = <b>${fmt(s.Eb, 3)}</b> (const)</span>`;
+  let note;
+  if (Cst.mode === 'in') note = 'In-phase mode: x₁ = x₂ at all times, so b = 0 and only a oscillates. The middle spring never stretches, so it plays no part: ω = √(κ/m).';
+  else if (Cst.mode === 'anti') note = 'Anti-phase mode: x₁ = −x₂ at all times, so a = 0 and only b oscillates. The middle spring is stretched twice as much, so the stiffness is κ + 2κc.';
+  else if (Cst.mode === 'pull') note = `Pull one aside: x₁(0) = A, x₂(0) = 0 is an equal mix of both modes (a₀ = b₀ = A/√2). As the two modes drift in and out of phase, energy flows to mass 2 and back${g.dw > 1e-6 ? `, every ${fmt(2 * swap, 1)} time units` : ''}, while the two mode energies (dashed) stay fixed.` + (Cp.kc > 0.3 * Cp.kap ? ' With strong coupling the exchange is fast and incomplete; try weak coupling for clean beats.' : '');
+  else note = 'Custom start, released from rest: a general mixture of the two modes. a(t) and b(t) still oscillate independently.';
+  if ($('c-note').textContent !== note) $('c-note').textContent = note;
+}
+
+// =====================================================================
+// tabs, loop, resize
+// =====================================================================
+let active = 'bowl';
+function showTab(name) {
+  if (!['bowl', 'well', 'coupled'].includes(name)) name = 'bowl';
+  active = name;
+  document.querySelectorAll('.tabs button').forEach((b) => b.setAttribute('aria-selected', String(b.dataset.tab === name)));
+  document.querySelectorAll('section.tab').forEach((s) => s.classList.toggle('on', s.id === 'tab-' + name));
+  try { if (location.hash !== '#' + name) history.replaceState(null, '', '#' + name); } catch (e) { /* ignore */ }
+  redrawActive();
+}
+document.querySelectorAll('.tabs button').forEach((b) => b.addEventListener('click', () => showTab(b.dataset.tab)));
+window.addEventListener('hashchange', () => showTab(location.hash.slice(1)));
+function redrawActive() {
+  if (active === 'bowl') drawP1();
+  else if (active === 'well') drawWellAll();
+  else drawCoupledAll();
+}
+let last = performance.now();
+function frame(now) {
+  const dt = Math.min(0.05, (now - last) / 1000); last = now;
+  if (!document.hidden) {
+    if (active === 'well') { if (Wst.play) Wst.t += dt * Wst.speed; drawWellAll(); }
+    else if (active === 'coupled') { if (Cst.play) Cst.t += dt * Cst.speed; drawCoupledAll(); }
+  }
+  requestAnimationFrame(frame);
+}
+let rTimer = null;
+window.addEventListener('resize', () => { clearTimeout(rTimer); rTimer = setTimeout(() => { bgKey = ''; redrawActive(); }, 60); });
+const mq = window.matchMedia ? matchMedia('(prefers-color-scheme: dark)') : null;
+if (mq && mq.addEventListener) mq.addEventListener('change', () => { readPal(); bgKey = ''; redrawActive(); });
+
+p1Changed();
+showTab((location.hash || '#bowl').slice(1));
+requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>

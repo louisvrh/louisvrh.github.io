@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>k vs G: which wavefronts hit every atom?</title>
+<style>
+body{font-family:Georgia,serif;margin:0;padding:14px;background:#fafaf7;color:#222}
+.wrap{max-width:560px;margin:auto}
+svg{width:100%;background:#fff;border:1px solid #ddd;display:block}
+label{display:flex;align-items:center;gap:8px;margin:6px 0;font-size:15px}
+input[type=range]{flex:1}
+button{font:inherit;font-size:14px;margin:2px;padding:3px 9px;border:1px solid #888;background:#fff;border-radius:4px;cursor:pointer}
+#v{margin:8px 0;padding:8px 10px;border-radius:6px;font-size:15px}
+.ok{background:#e3f4e6;border:1px solid #6bb47a}.no{background:#fbe9e4;border:1px solid #d58a73}
+p.s{font-size:14px;color:#555}
+@media (prefers-color-scheme:dark){body{background:#1b1b1b;color:#ddd}svg{background:#111;border-color:#444}button{background:#222;color:#ddd}.ok{background:#1f3a24}.no{background:#3e2620}p.s{color:#aaa}}
+</style></head><body>
+<script src="../lab-back.js" defer></script><!-- added for louisvrh.github.io/lab: back link --><div class="wrap">
+<h3 style="margin:4px 0">Wavefronts of k vs G on a square lattice</h3>
+<div>
+<button data-k="1,0">G = (1,0)</button><button data-k="1,1">G = (1,1)</button><button data-k="2,1">G = (2,1)</button><button data-k="2,0">G = (2,0)</button>
+<button data-k="0.7,0.3">k = (0.7,0.3)</button><button data-k="0.5,0">k = (0.5,0)</button><button data-k="1.3,0.6">k = (1.3,0.6)</button>
+</div>
+<label>k<sub>x</sub> <input id="kx" type="range" min="-3" max="3" step="0.05" value="0.7"><span id="lx"></span></label>
+<label>k<sub>y</sub> <input id="ky" type="range" min="-3" max="3" step="0.05" value="0.3"><span id="ly"></span></label>
+<svg id="s" viewBox="-0.6 -0.6 8.2 8.2"></svg>
+<div id="v"></div>
+<p class="s">Units: k in 2π/a, lattice spacing a = 1. Orange lines are the wavefronts k·r = 2πm (equal phase, through all space). Each atom is coloured by the phase k·R mod 2π that the wave has there: <b>black ring</b> = phase 0 (the atom sits on a wavefront). Every atom ringed ⇔ e<sup>ik·R</sup> = 1 for all R ⇔ k is a reciprocal lattice vector G.</p>
+</div>
+<script>
+const gcd=(a,b)=>b?gcd(b,a%b):a;
+const N=8,kx=document.getElementById('kx'),ky=document.getElementById('ky');
+document.querySelectorAll('button').forEach(b=>b.onclick=()=>{const[a,c]=b.dataset.k.split(',');kx.value=a;ky.value=c;draw()});
+kx.oninput=ky.oninput=draw;
+function draw(){
+  const u=+kx.value,v=+ky.value,k2=u*u+v*v; let s='';
+  document.getElementById('lx').textContent=u.toFixed(2);document.getElementById('ly').textContent=v.toFixed(2);
+  if(k2>1e-9){
+    const vals=[0,N-1].flatMap(x=>[0,N-1].map(y=>u*x+v*y)).concat([u*-0.6+v*-0.6,u*7.6+v*7.6,u*-0.6+v*7.6,u*7.6+v*-0.6]);
+    const lo=Math.floor(Math.min(...vals)),hi=Math.ceil(Math.max(...vals));
+    for(let m=lo;m<=hi;m++){const px=m*u/k2,py=m*v/k2,dx=-v/Math.sqrt(k2)*30,dy=u/Math.sqrt(k2)*30;
+      s+=`<line x1="${px-dx}" y1="${7-(py-dy)}" x2="${px+dx}" y2="${7-(py+dy)}" stroke="#e8902a" stroke-width="0.05" opacity="0.85"/>`}
+  }
+  let on=0;
+  for(let x=0;x<N;x++)for(let y=0;y<N;y++){
+    let ph=((u*x+v*y)%1+1)%1; const hit=Math.min(ph,1-ph)<1e-6; if(hit)on++;
+    const col=`hsl(${ph*360},70%,55%)`;
+    s+=`<circle cx="${x}" cy="${7-y}" r="0.2" fill="${col}" ${hit?'stroke="#000" stroke-width="0.07"':''}/>`;
+  }
+  const L=1.6/Math.max(Math.sqrt(k2),1e-9);
+  if(k2>1e-9) s+=`<defs><marker id="a" markerWidth="4" markerHeight="4" refX="2" refY="2" orient="auto"><path d="M0,0L4,2L0,4z" fill="#2a7d3a"/></marker></defs><line x1="0" y1="7" x2="${u*L}" y2="${7-v*L}" stroke="#2a7d3a" stroke-width="0.08" marker-end="url(#a)"/><text x="${u*L+0.15}" y="${7-v*L-0.1}" font-size="0.45" fill="#2a7d3a" font-style="italic">k</text>`;
+  document.getElementById('s').innerHTML=s;
+  const tot=N*N,el=document.getElementById('v'),isG=on===tot;
+  el.className=isG?'ok':'no';
+  el.innerHTML=isG?`<b>k is a reciprocal lattice vector G.</b> All ${tot} atoms lie on wavefronts: every atom sees the same phase, so this wave has the crystal's periodicity. These wavefronts are crystal planes${gcd(Math.round(Math.abs(u)),Math.round(Math.abs(v)))>1?` (indices share a factor ${gcd(Math.round(Math.abs(u)),Math.round(Math.abs(v)))}: a higher-order G, so some wavefronts contain no atoms)`:''}.`
+    :`<b>Generic k, not a G.</b> Only ${on} of ${tot} atoms lie on a wavefront. The rest sit at different phases (different colours), so contributions from different atoms don't all add in phase.`;
+}
+draw();
+</script></body></html>
